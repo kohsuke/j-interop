@@ -119,7 +119,7 @@ public class MSExcel2_Test {
 			//Logger l = Logger.getLogger("org.jinterop");
 			//l.setLevel(Level.FINEST);
 
-			int nRow = 100;
+			int nRow = 300;
 
 			if (args.length > 4) {
     			try {
