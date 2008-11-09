@@ -12,9 +12,9 @@ import org.jinterop.dcom.core.JIProgId;
 import org.jinterop.dcom.core.JISession;
 import org.jinterop.dcom.core.JIString;
 import org.jinterop.dcom.core.JIVariant;
-import org.jinterop.dcom.win32.IJIDispatch;
-import org.jinterop.dcom.win32.IJITypeInfo;
-import org.jinterop.dcom.win32.JIComFactory;
+import org.jinterop.dcom.impls.JIObjectFactory;
+import org.jinterop.dcom.impls.automation.IJIDispatch;
+import org.jinterop.dcom.impls.automation.IJITypeInfo;
 
 public class MSADO {
 
@@ -25,14 +25,14 @@ public class MSADO {
 	public MSADO(String address, String[] args) throws JIException, UnknownHostException
 	{
 		session = JISession.createSession(args[1],args[2],args[3]);
-		comServer = new JIComServer(JIProgId.valueOf(session,"ADODB.Connection"),address,session);
+		comServer = new JIComServer(JIProgId.valueOf("ADODB.Connection"),address,session);
 	}
 
 
 	public void performOp() throws JIException, InterruptedException
 	{
 		unknown = comServer.createInstance();
-		dispatch = (IJIDispatch)JIComFactory.createCOMInstance(JIComFactory.IID_IDispatch,unknown);
+		dispatch = (IJIDispatch)JIObjectFactory.narrowObject(unknown.queryInterface(IJIDispatch.IID));
 		IJITypeInfo typeInfo = dispatch.getTypeInfo(0);
 		typeInfo.getFuncDesc(0);
 
@@ -45,17 +45,17 @@ public class MSADO {
 		}
 		else
 		{
-			IJIDispatch resultSet = (IJIDispatch)variant[0].getObjectAsComObject(dispatch);
+			IJIDispatch resultSet = (IJIDispatch)JIObjectFactory.narrowObject(variant[0].getObjectAsComObject());
 			//variant = resultSet.get("EOF");
 			while(!resultSet.get("EOF").getObjectAsBoolean())
 			{
 				JIVariant variant2 = resultSet.get("Fields");
-				IJIDispatch fields = (IJIDispatch)variant2.getObjectAsComObject(dispatch);
+				IJIDispatch fields = (IJIDispatch)JIObjectFactory.narrowObject(variant2.getObjectAsComObject());
 				int count = fields.get("Count").getObjectAsInt();
 				for (int i = 0;i < count;i++)
 				{
 					variant = fields.get("Item",new Object[]{new Integer(i)});
-					IJIDispatch field = (IJIDispatch)variant[0].getObjectAsComObject(dispatch);
+					IJIDispatch field = (IJIDispatch)JIObjectFactory.narrowObject(variant[0].getObjectAsComObject());
 					variant2 = field.get("Value");
 					Object val = null;
 					if (variant2.getType() == JIVariant.VT_BSTR)

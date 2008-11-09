@@ -7,17 +7,16 @@ import java.net.UnknownHostException;
 import java.util.Date;
 
 import org.jinterop.dcom.common.JIException;
-import org.jinterop.dcom.common.JIInterfaceDefinition;
-import org.jinterop.dcom.common.JIJavaCoClass;
-import org.jinterop.dcom.common.JIMethodDescriptor;
 import org.jinterop.dcom.common.JISystem;
 import org.jinterop.dcom.core.IJIComObject;
 import org.jinterop.dcom.core.JIArray;
-import org.jinterop.dcom.core.JICallObject;
+import org.jinterop.dcom.core.JICallBuilder;
 import org.jinterop.dcom.core.JIComServer;
 import org.jinterop.dcom.core.JIFlags;
-import org.jinterop.dcom.core.JIInterfacePointer;
-import org.jinterop.dcom.core.JIParameterObject;
+import org.jinterop.dcom.core.JILocalCoClass;
+import org.jinterop.dcom.core.JILocalInterfaceDefinition;
+import org.jinterop.dcom.core.JILocalMethodDescriptor;
+import org.jinterop.dcom.core.JILocalParamsDescriptor;
 import org.jinterop.dcom.core.JIPointer;
 import org.jinterop.dcom.core.JIProgId;
 import org.jinterop.dcom.core.JISession;
@@ -25,7 +24,7 @@ import org.jinterop.dcom.core.JIStruct;
 import org.jinterop.dcom.core.JIUnsignedByte;
 import org.jinterop.dcom.core.JIUnsignedInteger;
 import org.jinterop.dcom.core.JIUnsignedShort;
-import org.jinterop.dcom.win32.JIComFactory;
+import org.jinterop.dcom.impls.JIObjectFactory;
 
 public class SampleTestServerCallback {
 
@@ -44,15 +43,15 @@ public class SampleTestServerCallback {
           append("C:\\Test\\callback_j.log", "SampleTestServerCallback::UpdateMe entered with array size=" + size + "\n");
           System.out.println("SampleTestServerCallback::UpdateMe entered with array size=" + size + "\n");
           JIStruct[] structArray = (JIStruct[]) array.getArrayInstance();
-          for (int i = 0; i < size.getEncapsulatedUnsigned().intValue(); i++) {
+          for (int i = 0; i < size.getValue().intValue(); i++) {
             append("C:\\Test\\callback_j.log", "Member 0= " + structArray[i].getMember(0).toString() +"\n");
             System.out.println("Array elt=" + i+ ",Member 0= " + structArray[i].getMember(0).toString() + "\n");
           }
         }
 
-        private static JIInterfaceDefinition registerInterface() throws JIException {
+        private static JILocalInterfaceDefinition registerInterface() throws JIException {
           //Now for the Java Implementation of SampleTestServer2 interface (from the type library or IDL)
-           JIInterfaceDefinition interfaceDefinition = new JIInterfaceDefinition("D3F9CE10-686C-11d2-97BF-006008BD50B1", false);//IStatisUpdateMeSink
+           JILocalInterfaceDefinition interfaceDefinition = new JILocalInterfaceDefinition("D3F9CE10-686C-11d2-97BF-006008BD50B1", false);//IStatisUpdateMeSink
 
           JIStruct VarData = new JIStruct();// Will add in the struct later on
           VarData.addMember(JIUnsignedInteger.class);
@@ -70,10 +69,10 @@ public class SampleTestServerCallback {
           NonVariableData.addMember(new JIPointer(new JIArray(VarData, null, 1, true),true)); //since this is an embedded pointer
           JIArray NonVariableDataArray = new JIArray(NonVariableData, null, 1, true);
 
-          JIParameterObject updateParamObj = new JIParameterObject();
+          JILocalParamsDescriptor updateParamObj = new JILocalParamsDescriptor();
           updateParamObj.addInParamAsType(JIUnsignedShort.class, JIFlags.FLAG_NULL);
           updateParamObj.addInParamAsObject(NonVariableDataArray, JIFlags.FLAG_NULL);
-          JIMethodDescriptor methodDescriptor = new JIMethodDescriptor("UpdateMe", updateParamObj);
+          JILocalMethodDescriptor methodDescriptor = new JILocalMethodDescriptor("UpdateMe", updateParamObj);
           interfaceDefinition.addMethodDescriptor(methodDescriptor);
 
           return interfaceDefinition;
@@ -82,22 +81,22 @@ public class SampleTestServerCallback {
         public static void testStaticUpdateMeSink(String[] args) throws JIException, InterruptedException, UnknownHostException {
 
           JISession session = JISession.createSession(args[1], args[2], args[3]);
-          JIComServer comStub = new JIComServer(JIProgId.valueOf(session, "TstMarsh.Test"), args[0], session);
+          JIComServer comStub = new JIComServer(JIProgId.valueOf("TstMarsh.Test"), args[0], session);
           IJIComObject unknown = comStub.createInstance();
           IJIComObject ITest = (IJIComObject) unknown.queryInterface("89D8C8BE-1E91-11D3-910F-00C04F9403C2"); //ITest
 
           //Create the Java Server class. This contains the instance to be called by the COM Server
           //
-          JIInterfaceDefinition interfaceDefinition = registerInterface();
+          JILocalInterfaceDefinition interfaceDefinition = registerInterface();
           if (StaticSinkJavaCoClass == null)
-            StaticSinkJavaCoClass = new JIJavaCoClass(interfaceDefinition, new SampleTestServerCallback());
-          IJIComObject iStaticSink = JIComFactory.createCOMInstance( ITest, JIInterfacePointer.getInterfacePointer(session, StaticSinkJavaCoClass));
+            StaticSinkJavaCoClass = new JILocalCoClass(interfaceDefinition, new SampleTestServerCallback());
+          IJIComObject iStaticSink = JIObjectFactory.buildObject(session, StaticSinkJavaCoClass);
 
           Object[] results = new Object[1];
           // Create the session
-          JICallObject javaCallback = new JICallObject(ITest.getIpid(), true);
+          JICallBuilder javaCallback = new JICallBuilder(true);
           javaCallback.setOpnum(0);
-          javaCallback.addInParamAsInterfacePointer(iStaticSink.getInterfacePointer(), JIFlags.FLAG_NULL);
+          javaCallback.addInParamAsComObject(iStaticSink, JIFlags.FLAG_NULL);
           javaCallback.addOutParamAsType(Integer.class, JIFlags.FLAG_NULL); //Long
           System.out.println("ITest.DoSomethingAndGetSomethingBack about to call this...");
           results = ITest.call(javaCallback);//<== same exception is thrown here as well
@@ -146,23 +145,23 @@ public class SampleTestServerCallback {
         public static void testSinkDebug(String[] args) throws JIException, InterruptedException, UnknownHostException {
 
           JISession session = JISession.createSession(args[1], args[2], args[3]);
-          JIComServer comStub = new JIComServer(JIProgId.valueOf(session, "TstMarsh.Test"), args[0], session);
+          JIComServer comStub = new JIComServer(JIProgId.valueOf("TstMarsh.Test"), args[0], session);
           IJIComObject unknown = comStub.createInstance();
           IJIComObject ITest = (IJIComObject) unknown.queryInterface("89D8C8BE-1E91-11D3-910F-00C04F9403C2"); //ITest
 
           //Create the Java Server class. This contains the instance to be called by the COM Server
           //
-          JIInterfaceDefinition interfaceDefinition = registerInterface();
+          JILocalInterfaceDefinition interfaceDefinition = registerInterface();
           if (StaticSinkJavaCoClass != null)
-            StaticSinkJavaCoClass = new JIJavaCoClass(interfaceDefinition, new SampleTestServerCallback());
+            StaticSinkJavaCoClass = new JILocalCoClass(interfaceDefinition, new SampleTestServerCallback());
 
-          IJIComObject iStaticSink = JIComFactory.createCOMInstance( ITest, JIInterfacePointer.getInterfacePointer(session, StaticSinkJavaCoClass));
+          IJIComObject iStaticSink = JIObjectFactory.buildObject(session, StaticSinkJavaCoClass);
 
           Object[] results = new Object[1];
           // Create the session
-          JICallObject javaCallback = new JICallObject(ITest.getIpid(), true);
+          JICallBuilder javaCallback = new JICallBuilder(true);
           javaCallback.setOpnum(8);
-          javaCallback.addInParamAsInterfacePointer(iStaticSink.getInterfacePointer(), JIFlags.FLAG_NULL);
+          javaCallback.addInParamAsComObject(iStaticSink, JIFlags.FLAG_NULL);
           javaCallback.addOutParamAsType(Integer.class, JIFlags.FLAG_NULL); //Long
           results = ITest.call(javaCallback);//<== same exception is thrown here as well
           System.out.println("ITest.DoSomethingAndGetSomethingBack succeeded, session out =" + results[0]);
@@ -200,6 +199,6 @@ public class SampleTestServerCallback {
           }
         }
 
-        static JIJavaCoClass StaticSinkJavaCoClass;
+        static JILocalCoClass StaticSinkJavaCoClass;
 
       }

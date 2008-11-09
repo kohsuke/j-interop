@@ -17,7 +17,7 @@
 
 package org.jinterop.dcom.core;
 
-/** Class representing various FLAGS used in the system.
+/** Class representing various flags used in the system.
  * 
  * @since 1.0
  */
@@ -25,15 +25,14 @@ public final class JIFlags {
 	private JIFlags(){}
 	
 	/**
-	 * FLAG representing nothing. Use this when you don't know what flag to send.
+	 * FLAG representing nothing. Use this if no other flag is to be set.
 	 */
 	public static final int FLAG_NULL = 0;
 	
 	//bstr string
 	/**
-	 * FLAG representing a <code>BSTR</code> String . <br>
-	 * MSDN defines it as <i>A length-prefixed string used by Automation data manipulation functions.</i>
-	 */
+	 * FLAG representing a <code>BSTR</code> string .
+	 **/
 	public static final int FLAG_REPRESENTATION_STRING_BSTR = 1;
 	
 	/**
@@ -56,13 +55,13 @@ public final class JIFlags {
 	 * @exclude
 	 */
 	//flag representing that this is a pointer
-	public static final int FLAG_REPRESENTATION_POINTER = 16; 
+	static final int FLAG_REPRESENTATION_POINTER = 16; 
 	
 	/**
 	 * @exclude
 	 */
 	//flag representing that this is a reference
-	public static final int FLAG_REPRESENTATION_REFERENCE = 32; 
+	static final int FLAG_REPRESENTATION_REFERENCE = 32; 
 
 	/**
 	 * @exclude
@@ -74,7 +73,7 @@ public final class JIFlags {
 	 * @exclude
 	 */
 	//flag representing that this is a IDispatch invoke call
-	public static final int FLAG_REPRESENTATION_NESTED_POINTER = 128;
+	static final int FLAG_REPRESENTATION_NESTED_POINTER = 128;
 	
 	/**
 	 * Flag representing unsigned byte.
@@ -102,8 +101,9 @@ public final class JIFlags {
 	public static final int FLAG_REPRESENTATION_VT_UINT = 4096;
 	
 	/**
-	 * Flag representing a boolean , VARIANT_BOOL, the boolean is 2 bytes for a variant and 1 byte for normal calls.
-	 * Use this when setting array of booleans within Variants.
+	 * Flag representing <code>VARIANT_BOOL</code>, a <code>boolean</code> is 
+	 * 2 bytes for a <code>VARIANT</code> and 1 byte for normal calls.
+	 * Use this when setting array of <code>boolean</code>s within <code>VARIANT</code>s.
 	 */
 	public static final int FLAG_REPRESENTATION_VARIANT_BOOL = 8192;
 
@@ -116,4 +116,32 @@ public final class JIFlags {
 	 * Used from within JIInterfacePointer to use decode2 API.
 	 */
 	static final int FLAG_REPRESENTATION_INTERFACEPTR_DECODE2 = 32768;
+	
+	/**
+	 * Used in JIVariant when sending a IUnknown Pointer. This is also how COM runtime does it.
+	 * A little strange to expect this behaviour since essentially all objects derieve from IUnknown so why replace the
+	 * IID ?
+	 */
+	static final int FLAG_REPRESENTATION_USE_IUNKNOWN_IID = 65536;
+	
+	/**
+	 * Used in JIVariant when sending a IDispatch Pointer. This is also how COM runtime does it.
+	 */
+	static final int FLAG_REPRESENTATION_USE_IDISPATCH_IID = 131072;
+
+	/**
+	 * Used in JIVariant to identify an ([out] IUnknown*) variable.
+	 */
+	static final int FLAG_REPRESENTATION_IUNKNOWN_NULL_FOR_OUT = 262144;
+	
+	/**
+	 * Used in JIVariant to identify an ([out] IDispatch*) variable.
+	 */
+	static final int FLAG_REPRESENTATION_IDISPATCH_NULL_FOR_OUT = 524288;
+	
+	/**
+	 * Used in JIVariant to send JIInterfacePointer as null.
+	 */
+	static final int FLAG_REPRESENTATION_SET_JIINTERFACEPTR_NULL_FOR_VARIANT = 1048576;
+	
 }

@@ -16,13 +16,12 @@ import java.util.logging.Level;
 import org.jinterop.dcom.common.JIException;
 import org.jinterop.dcom.common.JISystem;
 import org.jinterop.dcom.core.IJIComObject;
-import org.jinterop.dcom.core.IJIUnknown;
 import org.jinterop.dcom.core.JIComServer;
 import org.jinterop.dcom.core.JIProgId;
 import org.jinterop.dcom.core.JISession;
 import org.jinterop.dcom.core.JIString;
-import org.jinterop.dcom.win32.IJIDispatch;
-import org.jinterop.dcom.win32.JIComFactory;
+import org.jinterop.dcom.impls.JIObjectFactory;
+import org.jinterop.dcom.impls.automation.IJIDispatch;
 
 public class Main {
     
@@ -52,12 +51,9 @@ public class Main {
             JISystem.setAutoRegisteration(true);
             JISession session3 = JISession.createSession(domain,username,password);
             session3.useSessionSecurity(true);
-            //JIComServer virtualServer = new JIComServer(JIProgId.valueOf(session3, "TestCOM123.TestServer2"),args[0],session3);
-            JIComServer virtualServer = new JIComServer(JIProgId.valueOf(session3, "VirtualServer.Application"),args[0],session3);
-            IJIUnknown unkVirtualServer = virtualServer.createInstance();    
-            
-            // org.jinterop.dcom.common.JIException: Access is denied.  [0x80070005]
-            IJIDispatch dispatchVirtualServer = (IJIDispatch)JIComFactory.createCOMInstance(IJIDispatch.IID,(IJIComObject)unkVirtualServer);                        
+            JIComServer virtualServer = new JIComServer(JIProgId.valueOf("VirtualServer.Application"),args[0],session3);
+            IJIComObject unkVirtualServer = virtualServer.createInstance();    
+            IJIDispatch dispatchVirtualServer = (IJIDispatch)JIObjectFactory.narrowObject(unkVirtualServer.queryInterface(IJIDispatch.IID));                        
                         
  
             

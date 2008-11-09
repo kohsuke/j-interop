@@ -5,14 +5,13 @@ import java.net.UnknownHostException;
 import org.jinterop.dcom.common.JIException;
 import org.jinterop.dcom.core.IJIComObject;
 import org.jinterop.dcom.core.JIComServer;
-import org.jinterop.dcom.core.JIInterfacePointer;
 import org.jinterop.dcom.core.JIProgId;
 import org.jinterop.dcom.core.JISession;
 import org.jinterop.dcom.core.JIString;
 import org.jinterop.dcom.core.JIVariant;
-import org.jinterop.dcom.win32.IJIDispatch;
-import org.jinterop.dcom.win32.IJITypeInfo;
-import org.jinterop.dcom.win32.JIComFactory;
+import org.jinterop.dcom.impls.JIObjectFactory;
+import org.jinterop.dcom.impls.automation.IJIDispatch;
+import org.jinterop.dcom.impls.automation.IJITypeInfo;
 
 public class MSExcel {
 
@@ -29,13 +28,13 @@ public class MSExcel {
 	public MSExcel(String address,String[] args) throws JIException, UnknownHostException
 	{
 		session = JISession.createSession(args[1],args[2],args[3]);
-		comServer = new JIComServer(JIProgId.valueOf(session,"Excel.Application"),address,session);
+		comServer = new JIComServer(JIProgId.valueOf("Excel.Application"),address,session);
 	}
 
 	public void startExcel() throws JIException
 	{
 		unknown = comServer.createInstance();
-		dispatch = (IJIDispatch)JIComFactory.createCOMInstance(JIComFactory.IID_IDispatch,unknown);
+		dispatch = (IJIDispatch)JIObjectFactory.narrowObject(unknown.queryInterface(IJIDispatch.IID));
 		IJITypeInfo typeInfo = dispatch.getTypeInfo(0);
 		typeInfo.getFuncDesc(0);
 	}
@@ -53,8 +52,7 @@ public class MSExcel {
 		Object[] out = new Object[]{JIVariant.class};
 		JIVariant[] outVal2 = null;
 		JIVariant outVal = dispatch.get(dispId);
-		JIInterfacePointer ptr = (JIInterfacePointer)outVal.getObject();
-		dispatchOfWorkBook =(IJIDispatch)JIComFactory.createCOMInstance(unknown,ptr);
+		dispatchOfWorkBook =(IJIDispatch)JIObjectFactory.narrowObject(outVal.getObjectAsComObject());
 
 
 		int[] dispIds = dispatchOfWorkBook.getIDsOfNames(new String[]{"Add","Template"});
@@ -63,16 +61,14 @@ public class MSExcel {
 		dispId = dispatchOfWorkBook.getIDsOfNames("Add");
 
 		outVal2 = dispatchOfWorkBook.callMethodA(dispId,new Object[]{new Integer(xlWorksheet)});
-		ptr = (JIInterfacePointer)outVal2[0].getObject();
-		dispatchOfWorkBook =(IJIDispatch)JIComFactory.createCOMInstance(unknown,ptr);
+		dispatchOfWorkBook =(IJIDispatch)JIObjectFactory.narrowObject(outVal2[0].getObjectAsComObject());
 
 		dispId = dispatchOfWorkBook.getIDsOfNames("Worksheets");
 		JIVariant variant = new JIVariant((short)1);
 		out = new Object[]{JIVariant.class};
 		outVal2 = dispatchOfWorkBook.get(dispId,new Object[]{variant});
 
-		ptr = (JIInterfacePointer)outVal2[0].getObject();
-		dispatchOfWorkSheet =(IJIDispatch)JIComFactory.createCOMInstance(unknown,ptr);
+		dispatchOfWorkSheet =(IJIDispatch)JIObjectFactory.narrowObject(outVal2[0].getObjectAsComObject());
 
 	}
 
@@ -85,8 +81,7 @@ public class MSExcel {
 		JIVariant outVal,outVal2[] = null;
 		outVal2 = dispatchOfWorkSheet.get(dispId, new Object[]{variant});
 
-		JIInterfacePointer ptr = (JIInterfacePointer)outVal2[0].getObject();
-		IJIDispatch dispRange = (IJIDispatch)JIComFactory.createCOMInstance(unknown,ptr);
+		IJIDispatch dispRange = (IJIDispatch)JIObjectFactory.narrowObject(outVal2[0].getObjectAsComObject());
 
 		dispId = dispRange.getIDsOfNames("Select");
 		out = new Object[]{JIVariant.class};
@@ -96,8 +91,7 @@ public class MSExcel {
 		out = new Object[]{JIVariant.class};
 		outVal = dispatchOfWorkBook.get(dispId);
 
-		ptr = (JIInterfacePointer)outVal.getObject();
-		IJIDispatch dispatchActiveSheet = (IJIDispatch)JIComFactory.createCOMInstance(unknown,ptr);
+		IJIDispatch dispatchActiveSheet = (IJIDispatch)JIObjectFactory.narrowObject(outVal.getObjectAsComObject());
 		dispId = dispatchActiveSheet.getIDsOfNames("Paste");
 		out = new Object[]{JIVariant.class};
 		try{
@@ -118,15 +112,14 @@ public class MSExcel {
 		JIVariant outVal ,outVal2[] = null;
 		outVal2 = dispatchOfWorkSheet.get(dispId,new Object[]{cols});
 
-		JIInterfacePointer ptr = (JIInterfacePointer)outVal2[0].getObject();
-		IJIDispatch dispatchRange = (IJIDispatch)JIComFactory.createCOMInstance(unknown,ptr);
+		
+		IJIDispatch dispatchRange = (IJIDispatch)JIObjectFactory.narrowObject(outVal2[0].getObjectAsComObject());
 
 		dispId = dispatchOfWorkBook.getIDsOfNames("Charts");
 		out = new Object[]{JIVariant.class};
 		outVal = dispatchOfWorkBook.get(dispId);
 
-		ptr = (JIInterfacePointer)outVal.getObject();
-		IJIDispatch dispatchChart = (IJIDispatch)JIComFactory.createCOMInstance(unknown,ptr);
+		IJIDispatch dispatchChart = (IJIDispatch)JIObjectFactory.narrowObject(outVal.getObjectAsComObject());
 
 
 
@@ -134,16 +127,14 @@ public class MSExcel {
 		out = new Object[]{JIVariant.class};
 		outVal = dispatchChart.callMethodA(dispId);
 
-		ptr = (JIInterfacePointer)outVal.getObject();
-		dispatchChart = (IJIDispatch)JIComFactory.createCOMInstance(unknown,ptr);
+		dispatchChart = (IJIDispatch)JIObjectFactory.narrowObject(outVal.getObjectAsComObject());
 
 		dispId = dispatchOfWorkBook.getIDsOfNames("ActiveChart");
 		out = new Object[]{JIVariant.class};
 
 		outVal = dispatchOfWorkBook.get(dispId);
 
-		ptr = (JIInterfacePointer)outVal.getObject();
-		IJIDispatch dispatchActiveChart = (IJIDispatch)JIComFactory.createCOMInstance(unknown,ptr);
+		IJIDispatch dispatchActiveChart = (IJIDispatch)JIObjectFactory.narrowObject(outVal.getObjectAsComObject());
 
 		dispId = dispatchActiveChart.getIDsOfNames("ChartType");
 		out = new Object[]{JIVariant.class};

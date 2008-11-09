@@ -20,6 +20,7 @@ package org.jinterop.dcom.transport;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.List;
 import java.util.logging.Level;
 
 import ndr.NdrBuffer;
@@ -68,16 +69,23 @@ public final class JIComRuntimeEndpoint extends ConnectionOrientedEndpoint {
 	}
 	
 	//use this oxidObject, it is actually OxidResolverImpl extends NdrObject. 
-	public void processRequests(IJICOMRuntimeWorker workerObject, String baseIID) throws IOException 
+	public void processRequests(IJICOMRuntimeWorker workerObject, String baseIID, List listOfSupportedInterfaces) throws IOException 
 	{
 
+		if (JISystem.getLogger().isLoggable(Level.INFO))
+		{
+			JISystem.getLogger().info("processRequests: [JIComRuntimeEndPoint] started new thread " + Thread.currentThread().getName());
+		}
 		//this iid is the component IID just in case.
 		if (baseIID != null) 
 		{
 			getTransport().getProperties().setProperty("IID2", baseIID);
 		}
+		
+		getTransport().getProperties().put("LISTOFSUPPORTEDINTERFACES",listOfSupportedInterfaces);
+		
 		bind();// will bind to the server and perform the initial bind\bind ack.
-		//this will start listening on the port and replying.		
+		
 		while (true)
 		{
 			
@@ -112,7 +120,7 @@ public final class JIComRuntimeEndpoint extends ConnectionOrientedEndpoint {
 				  }
 				  ndr.setFormat(((RequestCoPdu) request).getFormat());
 				  workerObject.setOpnum(((RequestCoPdu) request).getOpnum());
-				  //sets the current object, this is used to identify the JIJavaCoClass to work on.
+				  //sets the current object, this is used to identify the JILocalCoClass to work on.
 				  //for most cases this will be null , till there is an actual COM interface request.
 				  workerObject.setCurrentObjectID(((RequestCoPdu) request).getObject());
 				  
@@ -125,10 +133,10 @@ public final class JIComRuntimeEndpoint extends ConnectionOrientedEndpoint {
 					  responseCoPdu.setCallId(((RequestCoPdu) request).getCallId());
 					  ((NdrObject)workerObject).encode(ndr,null);
 					  int length = ndr.getBuffer().length > ndr.getBuffer().index ? ndr.getBuffer().length : ndr.getBuffer().index;
-					  length = length + 4;
-					  responseCoPdu.setAllocationHint(length);
-					  byte[] responsebytes = new byte[length];
-					  System.arraycopy(ndr.getBuffer().getBuffer(), 0, responsebytes, 0, responsebytes.length);
+//					  length = length + 4;
+					  responseCoPdu.setAllocationHint(length + 4);
+					  byte[] responsebytes = new byte[length + 4];
+					  System.arraycopy(ndr.getBuffer().getBuffer(), 0, responsebytes, 0, responsebytes.length - 4);
 					  responseCoPdu.setStub(responsebytes);
 //					  responseCoPdu.setStub(ndr.getBuffer().getBuffer());
 					  response = responseCoPdu;
@@ -233,7 +241,7 @@ public final class JIComRuntimeEndpoint extends ConnectionOrientedEndpoint {
 		     
 			  if (workerObject.workerOver())
 			  {
-			      JISystem.getLogger().info("processRequests: [JIComRuntimeEndPoint] Worker is over, all IPID references have been released. Thread will now exit.");
+			      JISystem.getLogger().info("processRequests: [JIComRuntimeEndPoint] Worker is over, all IPID references have been released. Thread " + Thread.currentThread().getName() + " will now exit.");
 			      break;
 			  }
 		}

@@ -344,7 +344,7 @@ public final class JIErrorCodes {
  public static final int JI_UTIL_FLAG_ERROR = 0x00001008;
  
  /**
-  * Internal Library Error. This method should not have been called. Please check the parameters which you have passed to JICallObject. 
+  * Internal Library Error. This method should not have been called. Please check the parameters which you have passed to JICallBuilder. 
   * They have been sent incorrectly.
   */
  public static final int JI_UTIL_INCORRECT_CALL = 0x00001009;
@@ -375,7 +375,7 @@ public final class JIErrorCodes {
  public static final int JI_COMSTUB_RR_ERROR = 0x0000100E;
  
  /**
-  *	Internal Library Error, the serializer\deserializer was not found for {0}. Please check the parameters passed to JICallObject.
+  *	Internal Library Error, the serializer\deserializer was not found for {0}. Please check the parameters passed to JICallBuilder.
   */
  public static final int JI_UTIL_SERDESER_NOT_FOUND = 0x0000100F;
  
@@ -385,7 +385,7 @@ public final class JIErrorCodes {
  public static final int JI_AUTH_NOT_SUPPLIED = 0x00001010;
  
  /**
-  *	ptr and template cannot be null.
+  *	Incorrect or Invalid Parameter(s) specified.
   */
  public static final int JI_COMFACTORY_ILLEGAL_ARG = 0x00001011;
  
@@ -545,7 +545,7 @@ public final class JIErrorCodes {
  public static final int JI_WINREG_EXCEPTION5 = 0x00001036;
  
  /**
-  * JIMethodDescriptor is being added to a JIInterfaceDefinition supporting dispInterface, but it itself does not have a 
+  * JILocalMethodDescriptor is being added to a JILocalInterfaceDefinition supporting dispInterface, but it itself does not have a 
   * dispId.
   */
  public static final int JI_METHODDESC_DISPID_MISSING = 0x00001037;
@@ -577,12 +577,12 @@ public final class JIErrorCodes {
  
  
  /**
-  * This JIJavaCoClass has already been exported with one interface pointer, please use a new instance of this class with JIInterfacePointer.getInterfacePointer(...) api.
+  * This JILocalCoClass has already been exported with one interface pointer, please use a new instance of this class with JIInterfacePointer.getInterfacePointer(...) api.
   */
  public static final int JI_JAVACOCLASS_ALREADY_EXPORTED = 0x00001043;
  
  /**
-  * JIInterfacePointer is not a valid parameter, please use JIVariant(IJIComObject,...) or JIVariant(IJIDispatch,...) depending upon the type.   
+  * JIInterfacePointer is not a valid parameter, please use JIVariant(IJIComObject,...).   
   */
  public static final int JI_VARIANT_TYPE_INCORRECT = 0x00001044;
  
@@ -600,5 +600,21 @@ public final class JIErrorCodes {
   * getInstance() cannot be called since the JIComServer(JISession, JIInterfacePointer, String) ctor was NOT used to create this COM server instance, please use createInstance() instead.
   */
  public static final int JI_COMSTUB_WRONGCALLGETINSTANCE = 0x00001047;
+ 
+ /**
+  * A session is already attached with this COM object.
+  */
+ public static final int JI_SESSION_ALREADY_ATTACHED = 0x00001048;
+ 
+ /**
+  * This API cannot be invoked on local references.
+  */
+ public static final int JI_COMOBJ_LOCAL_REF = 0x00001049;
+ 
+ /**
+  * A session is not attached with this object , use JIObjectFactory.buildObject(JISession, IJIComObject) to attach a session with this object.
+  */
+ public static final int JI_SESSION_NOT_ATTACHED = 0x00001050;
+ 
  
 }

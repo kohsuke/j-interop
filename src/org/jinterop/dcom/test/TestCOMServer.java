@@ -6,15 +6,15 @@ import java.net.UnknownHostException;
 
 import org.jinterop.dcom.common.JIException;
 import org.jinterop.dcom.core.IJIComObject;
-import org.jinterop.dcom.core.JICallObject;
+import org.jinterop.dcom.core.JICallBuilder;
 import org.jinterop.dcom.core.JIClsid;
 import org.jinterop.dcom.core.JIComServer;
 import org.jinterop.dcom.core.JIFlags;
 import org.jinterop.dcom.core.JIPointer;
 import org.jinterop.dcom.core.JISession;
 import org.jinterop.dcom.core.JIVariant;
-import org.jinterop.dcom.win32.IJIDispatch;
-import org.jinterop.dcom.win32.JIComFactory;
+import org.jinterop.dcom.impls.JIObjectFactory;
+import org.jinterop.dcom.impls.automation.IJIDispatch;
 
 public class TestCOMServer {
 
@@ -38,14 +38,14 @@ public class TestCOMServer {
 		unknown = comStub.createInstance();
 		//CLSID of IITestCOMServer
 		IJIComObject comObject = (IJIComObject)unknown.queryInterface("4AE62432-FD04-4BF9-B8AC-56AA12A47FF9");
-		dispatch = (IJIDispatch)JIComFactory.createCOMInstance(JIComFactory.IID_IDispatch,comObject);
+		dispatch = (IJIDispatch)JIObjectFactory.narrowObject(comObject.queryInterface(IJIDispatch.IID));
 
 		//Now call via automation
 		Object results[] = dispatch.callMethodA("Add",new Object[]{new Integer(1), new Integer(2), new JIVariant(0,true)});
 		System.out.println(results[1]);
 
 		//now without automation
-		JICallObject callObject = new JICallObject(comObject.getIpid());
+		JICallBuilder callObject = new JICallBuilder();
 		callObject.setOpnum(1);//obtained from the IDL or TypeLib.
 		callObject.addInParamAsInt(1,JIFlags.FLAG_NULL);
 		callObject.addInParamAsInt(2,JIFlags.FLAG_NULL);

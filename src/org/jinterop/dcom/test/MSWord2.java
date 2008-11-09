@@ -11,8 +11,8 @@ import org.jinterop.dcom.core.JIProgId;
 import org.jinterop.dcom.core.JISession;
 import org.jinterop.dcom.core.JIString;
 import org.jinterop.dcom.core.JIVariant;
-import org.jinterop.dcom.win32.IJIDispatch;
-import org.jinterop.dcom.win32.JIComFactory;
+import org.jinterop.dcom.impls.JIObjectFactory;
+import org.jinterop.dcom.impls.automation.IJIDispatch;
 
 public class MSWord2 {
 
@@ -23,13 +23,13 @@ public class MSWord2 {
 	public MSWord2(String address, String[] args) throws JIException, UnknownHostException
 	{
 		JISession session = JISession.createSession(args[1],args[2],args[3]);
-		comStub = new JIComServer(JIProgId.valueOf(session,"Word.Application"),address,session);
+		comStub = new JIComServer(JIProgId.valueOf("Word.Application"),address,session);
 	}
 
 	public void startWord() throws JIException
 	{
 		unknown = comStub.createInstance();
-		dispatch = (IJIDispatch)JIComFactory.createCOMInstance(JIComFactory.IID_IDispatch,unknown);
+		dispatch = (IJIDispatch)JIObjectFactory.narrowObject(unknown.queryInterface(IJIDispatch.IID));
 	}
 
 	public void showWord() throws JIException
@@ -45,8 +45,8 @@ public class MSWord2 {
 		System.out.println(((JIVariant)dispatch.get("Path")).getObjectAsString().getString());
 		JIVariant variant = dispatch.get("Documents");
 		//JIInterfacePointer ptr = variant.getObjectAsInterfacePointer();
-		//IJIDispatch documents = (IJIDispatch)JIComFactory.createCOMInstance(unknown,ptr);
-		IJIDispatch documents = (IJIDispatch)variant.getObjectAsComObject(unknown);
+		//IJIDispatch documents = (IJIDispatch)JIObjectFactory.createCOMInstance(unknown,ptr);
+		IJIDispatch documents = (IJIDispatch)JIObjectFactory.narrowObject(variant.getObjectAsComObject());
 		JIString filePath = new JIString("c:/temp/test.doc");
 		JIVariant variant2[] = documents.callMethodA("open",new Object[]{filePath.VariantByRef,JIVariant.OPTIONAL_PARAM()
 				,JIVariant.OPTIONAL_PARAM(),JIVariant.OPTIONAL_PARAM(),JIVariant.OPTIONAL_PARAM(),
@@ -54,14 +54,14 @@ public class MSWord2 {
 				JIVariant.OPTIONAL_PARAM(),JIVariant.OPTIONAL_PARAM(),JIVariant.OPTIONAL_PARAM(),
 				JIVariant.OPTIONAL_PARAM(),JIVariant.OPTIONAL_PARAM(),JIVariant.OPTIONAL_PARAM(),
 				JIVariant.OPTIONAL_PARAM(),JIVariant.OPTIONAL_PARAM()});
-		//IJIDispatch document = (IJIDispatch)JIComFactory.createCOMInstance(unknown,variant2[0].getObjectAsInterfacePointer());
-		IJIDispatch document = (IJIDispatch)variant2[0].getObjectAsComObject(unknown);
+		//IJIDispatch document = (IJIDispatch)JIObjectFactory.createCOMInstance(unknown,variant2[0].getObjectAsInterfacePointer());
+		IJIDispatch document = (IJIDispatch)JIObjectFactory.narrowObject(variant2[0].getObjectAsComObject());
 		variant = document.get("Content");
-		//IJIDispatch range = (IJIDispatch)JIComFactory.createCOMInstance(unknown,variant.getObjectAsInterfacePointer());
-		IJIDispatch range = (IJIDispatch)variant.getObjectAsComObject(unknown);
+		//IJIDispatch range = (IJIDispatch)JIObjectFactory.createCOMInstance(unknown,variant.getObjectAsInterfacePointer());
+		IJIDispatch range = (IJIDispatch)JIObjectFactory.narrowObject(variant.getObjectAsComObject());
 
 		variant = range.get("Find");
-		IJIDispatch find = (IJIDispatch)variant.getObjectAsComObject(unknown);
+		IJIDispatch find = (IJIDispatch)JIObjectFactory.narrowObject(variant.getObjectAsComObject());
 
 		Thread.sleep(2000);
 		JIString findString = new JIString("ow");

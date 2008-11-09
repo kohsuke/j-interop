@@ -7,13 +7,12 @@ import java.net.UnknownHostException;
 import org.jinterop.dcom.common.JIException;
 import org.jinterop.dcom.core.IJIComObject;
 import org.jinterop.dcom.core.JIComServer;
-import org.jinterop.dcom.core.JIInterfacePointer;
 import org.jinterop.dcom.core.JIProgId;
 import org.jinterop.dcom.core.JISession;
 import org.jinterop.dcom.core.JIString;
 import org.jinterop.dcom.core.JIVariant;
-import org.jinterop.dcom.win32.IJIDispatch;
-import org.jinterop.dcom.win32.JIComFactory;
+import org.jinterop.dcom.impls.JIObjectFactory;
+import org.jinterop.dcom.impls.automation.IJIDispatch;
 
 public class KainTest {
 
@@ -24,13 +23,13 @@ public class KainTest {
 	public KainTest(String address, String[] args) throws JIException, UnknownHostException
 	{
 		JISession session = JISession.createSession(args[1],args[2],args[3]);
-		comServer = new JIComServer(JIProgId.valueOf(session,"Word.Application"),address,session);
+		comServer = new JIComServer(JIProgId.valueOf("Word.Application"),address,session);
 	}
 
 	public void startWord() throws JIException
 	{
 		unknown = comServer.createInstance();
-		dispatch = (IJIDispatch)JIComFactory.createCOMInstance(JIComFactory.IID_IDispatch,unknown);
+		IJIDispatch dispatch = (IJIDispatch)JIObjectFactory.narrowObject(unknown.queryInterface(IJIDispatch.IID));
 	}
 
 	public void showWord() throws JIException
@@ -47,7 +46,7 @@ public class KainTest {
 		 String sOutputDoc = sDir + "file_out.doc";
 
 		 String sOldText = "[label:import:1]";
-		 String sNewText = "I am some horribly long sentence, so long that [insert bullshit here]";
+		 String sNewText = "I am some horribly long sentence, so long that [insert something long here]";
 		 boolean tVisible = true;
 		 boolean tSaveOnExit = false;
 
@@ -55,8 +54,7 @@ public class KainTest {
 		System.out.println(((JIVariant)dispatch.get("Path")).getObjectAsString().getString());
 
 		JIVariant variant = dispatch.get("Documents");
-		JIInterfacePointer ptr = variant.getObjectAsInterfacePointer();
-		IJIDispatch documents = (IJIDispatch)JIComFactory.createCOMInstance(unknown,ptr);
+		IJIDispatch documents = (IJIDispatch)JIObjectFactory.narrowObject(variant.getObjectAsComObject());
 		//String has to be a JIString.
 		JIString filePath = new JIString(sInputDoc);
 		//this "open" is of Word 2003
@@ -67,12 +65,12 @@ public class KainTest {
 				JIVariant.OPTIONAL_PARAM(),JIVariant.OPTIONAL_PARAM(),JIVariant.OPTIONAL_PARAM(),
 				JIVariant.OPTIONAL_PARAM(),JIVariant.OPTIONAL_PARAM()});
 
-		IJIDispatch document = (IJIDispatch)JIComFactory.createCOMInstance(unknown,variant2[0].getObjectAsInterfacePointer());
+		IJIDispatch document = (IJIDispatch)JIObjectFactory.narrowObject(variant2[0].getObjectAsComObject());
 		variant = dispatch.get("Selection");
-		IJIDispatch selection = (IJIDispatch)JIComFactory.createCOMInstance(unknown,variant.getObjectAsInterfacePointer());
+		IJIDispatch selection = (IJIDispatch)JIObjectFactory.narrowObject(variant.getObjectAsComObject());
 
 		variant = selection.get("Find");
-		IJIDispatch find = (IJIDispatch)JIComFactory.createCOMInstance(unknown,variant.getObjectAsInterfacePointer());
+		IJIDispatch find = (IJIDispatch)JIObjectFactory.narrowObject(variant.getObjectAsComObject());
 
 		Thread.sleep(2000);
 
@@ -92,13 +90,13 @@ public class KainTest {
 		selection.put("Text",new JIVariant(new JIString("\nSo we got the next line including BR.\n")));
 
 		variant = selection.get("Font");
-		IJIDispatch font = (IJIDispatch)JIComFactory.createCOMInstance(unknown,variant.getObjectAsInterfacePointer());
+		IJIDispatch font = (IJIDispatch)JIObjectFactory.narrowObject(variant.getObjectAsComObject());
 		font.put("Bold",new JIVariant(1));
 		font.put("Italic",new JIVariant(1));
 		font.put("Underline",new JIVariant(0));
 
 		variant = selection.get("ParagraphFormat");
-		IJIDispatch align = (IJIDispatch)JIComFactory.createCOMInstance(unknown,variant.getObjectAsInterfacePointer());
+		IJIDispatch align = (IJIDispatch)JIObjectFactory.narrowObject(variant.getObjectAsComObject());
 		align.put("Alignment",new JIVariant(3));
 
 		Thread.sleep(5000);
@@ -107,20 +105,20 @@ public class KainTest {
 		selection.callMethodA("MoveDown",new Object[]{JIVariant.OPTIONAL_PARAM(),JIVariant.OPTIONAL_PARAM()
 					,JIVariant.OPTIONAL_PARAM()});
 		variant = selection.get("InLineShapes");
-		IJIDispatch image = (IJIDispatch)JIComFactory.createCOMInstance(unknown,variant.getObjectAsInterfacePointer());
+		IJIDispatch image = (IJIDispatch)JIObjectFactory.narrowObject(variant.getObjectAsComObject());
 		image.callMethodA("AddPicture",new Object[]{new JIVariant(sImgFile),JIVariant.OPTIONAL_PARAM(),JIVariant.OPTIONAL_PARAM()
 				,JIVariant.OPTIONAL_PARAM()});
 
 		JIString sHyperlink = new JIString("http://www.google.com");
 		selection.put("Text",new JIVariant(new JIString("Text for the link to Google")));
 		variant = selection.get("Range");
-		IJIDispatch range = (IJIDispatch)JIComFactory.createCOMInstance(unknown,variant.getObjectAsInterfacePointer());
+		IJIDispatch range = (IJIDispatch)JIObjectFactory.narrowObject(variant.getObjectAsComObject());
 		variant = document.get("Hyperlinks");
-		IJIDispatch link = (IJIDispatch)JIComFactory.createCOMInstance(unknown,variant.getObjectAsInterfacePointer());
+		IJIDispatch link = (IJIDispatch)JIObjectFactory.narrowObject(variant.getObjectAsComObject());
 		link.callMethod("Add",new Object[]{range,sHyperlink,JIVariant.OPTIONAL_PARAM(),JIVariant.OPTIONAL_PARAM(),JIVariant.OPTIONAL_PARAM(),JIVariant.OPTIONAL_PARAM()});
 
 		variant = dispatch.get("WordBasic");
-		IJIDispatch wordBasic = (IJIDispatch)JIComFactory.createCOMInstance(unknown,variant.getObjectAsInterfacePointer());
+		IJIDispatch wordBasic = (IJIDispatch)JIObjectFactory.narrowObject(variant.getObjectAsComObject());
 		wordBasic.callMethod("FileSaveAs",new Object[]{new JIString(sOutputDoc)});
 
 		dispatch.callMethod("Quit", new Object[]{new JIVariant(-1,true),JIVariant.OPTIONAL_PARAM(),JIVariant.OPTIONAL_PARAM()});

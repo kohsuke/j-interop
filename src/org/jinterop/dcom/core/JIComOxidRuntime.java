@@ -34,16 +34,12 @@ import java.util.logging.Level;
 
 import org.jinterop.dcom.common.JIErrorCodes;
 import org.jinterop.dcom.common.JIException;
-import org.jinterop.dcom.common.JIJavaCoClass;
 import org.jinterop.dcom.common.JISystem;
 
 import rpc.Security;
 
 import com.iwombat.foundation.IdentifierFactory;
 import com.iwombat.util.GUIDUtil;
-
-
-
 
 
 /** Thread for Oxid Resolver. Creates and accepts socket
@@ -100,7 +96,7 @@ final class JIComOxidRuntime {
 		String domain = null;
 		boolean modified = false;
 		boolean closed = false;
-		int seqNum = 0;
+		int seqNum = 1;
 		//JISession session  = null;
 		ArrayList currentSetOIDs = new ArrayList();//list of JIObjectId, this list is iterated and if the IPID ref count is 0 , 
 												//it is added as a delete in set and a complex ping is sent.
@@ -134,7 +130,13 @@ final class JIComOxidRuntime {
 					if (oid.hasExpired())
 					{
 						//remove all
-						JIJavaCoClass component = (JIJavaCoClass)mapOfOIDVsComponents.get(oid);
+						JILocalCoClass component = (JILocalCoClass)mapOfOIDVsComponents.get(oid);
+						//this means the local system still has references and we cannot delete this object
+						//since the user may reuse it.
+						if (component.isAssociatedReferenceAlive())
+						{
+							continue;
+						}
 						JIComOxidDetails details = (JIComOxidDetails)mapOfJavaVsOxidDetails.get(component);
 						mapOfOxidVsOxidDetails.remove(details.getOxid());
 						mapOfIPIDVsComponent.remove(details.getIpid());
@@ -143,7 +145,7 @@ final class JIComOxidRuntime {
 						itr.remove();
 						
 						//the thread associated with this will also stop.
-						details.interruptRemUnknownThread();
+						details.interruptRemUnknownThreadGroup();
 						
 						component = null;
 						details = null;
@@ -174,14 +176,20 @@ final class JIComOxidRuntime {
             {
                 JIObjectId oid = (JIObjectId)oids.get(i);
                 //remove all
-                JIJavaCoClass component = (JIJavaCoClass)mapOfOIDVsComponents.remove(oid);
+                JILocalCoClass component = (JILocalCoClass)mapOfOIDVsComponents.remove(oid);
                 JIComOxidDetails details = (JIComOxidDetails)mapOfJavaVsOxidDetails.get(component);
-                mapOfOxidVsOxidDetails.remove(details.getOxid());
-                mapOfIPIDVsComponent.remove(details.getIpid());
+                if (details != null)
+                {
+                	mapOfOxidVsOxidDetails.remove(details.getOxid());
+                	mapOfIPIDVsComponent.remove(details.getIpid());
+                }
                 mapOfJavaVsOxidDetails.remove(component);
                 listOfExportedJavaComponents.remove(component);
                 //the thread associated with this will also stop.
-                details.interruptRemUnknownThread();
+                if (details != null)
+                {
+                	details.interruptRemUnknownThreadGroup();
+                }
                 component = null;
                 details = null;
                 oid = null;
@@ -463,7 +471,7 @@ final class JIComOxidRuntime {
 				    	//System.err.println("VIKRAM: Accepting new Call from " + socket.getPort());
 				    	//in a multithreaded scenario this will be serialized.
 				    	synchronized (mutex) {
-				    		JISystem.setSocket(socket);
+				    		JISystem.internal_setSocket(socket);
 					    	//now create the JIComOxidRuntimeHelper Object and start it.
 				    		Properties properties = new Properties(defaults);
 				    		properties.put("IID","99fcfec4-5260-101b-bbcb-00aa0021347a:0.0".toUpperCase()); //IOxidResolver
@@ -524,27 +532,33 @@ final class JIComOxidRuntime {
 	 * @param javaInstance
 	 * @return
 	 */
-	static JIInterfacePointer getInterfacePointer(JISession session,JIJavaCoClass component) throws JIException
+	static JIInterfacePointer getInterfacePointer(JISession session,JILocalCoClass component) throws JIException
 	{
 		JIInterfacePointer ptr = null;
 		
 		synchronized (mutex2) 
 		{
-
-			JIComOxidDetails details = 	(JIComOxidDetails)mapOfJavaVsOxidDetails.get(component);
-			
-			if (details != null)
+			if (component.isAlreadyExported())
 			{
-				return details.getInterfacePtr();
+				throw new JIException(JIErrorCodes.JI_JAVACOCLASS_ALREADY_EXPORTED);
 			}
+
+			component.setSession(session);
+//
+//			JIComOxidDetails details = 	(JIComOxidDetails)mapOfJavaVsOxidDetails.get(component);
+//			
+//			if (details != null)
+//			{
+//				return details.getInterfacePtr();
+//			}
 			
 			//as the ID could be repeated, this is the ipid of the interface being requested.
 			String ipid = GUIDUtil.guidStringFromHexString(IdentifierFactory.createUniqueIdentifier().toHexString()); 
-			String iid = component.isCoClassUnderRealIID() ? component.getComponentID() : IJIUnknown.IID;//has to be IUnknown's IID.
+			String iid = component.isCoClassUnderRealIID() ? component.getCoClassIID() : IJIComObject.IID;//has to be IUnknown's IID.
 			byte[] bytes = new byte[8];
 			randomGen.nextBytes(bytes);
 			JIOxid oxid = new JIOxid(bytes);
-			byte[] bytes2 = new byte[8];
+			byte[] bytes2 = new byte[8]; 
 			randomGen.nextBytes(bytes2);
 			
 			JIObjectId oid = new JIObjectId(bytes2);
@@ -581,7 +595,7 @@ final class JIComOxidRuntime {
 			//now create a new JIComOxidDetails
 			//this carries a reference to the javaInstance , incase we do not get pings from the client
 			//at the right times, the cleaup thread will remove this entry and it's OXID as well from both the maps.
-			details = new JIComOxidDetails(component,oxid,oid,iid,ipid,ptr,remUnknown,protecttionLevel);
+    		JIComOxidDetails details = new JIComOxidDetails(component,oxid,oid,iid,ipid,ptr,remUnknown,protecttionLevel);
 			
 			
 			mapOfJavaVsOxidDetails.put(component,details);
@@ -602,11 +616,6 @@ final class JIComOxidRuntime {
 			}
 			oids.add(oid);
 			
-			
-			if (component.getAssociatedInterfacePointer() != null)
-			{
-				throw new JIException(JIErrorCodes.JI_JAVACOCLASS_ALREADY_EXPORTED);
-			}
 			component.setAssociatedInterfacePointer(ptr);
 		}
 		return ptr;
@@ -661,7 +670,7 @@ final class JIComOxidRuntime {
 					JIObjectId oid = (JIObjectId)listOfOIDs.get(i);
 					if(!objectIdsDel.contains(oid))
 					{
-						oid.hasExpired();
+						oid.updateLastPingTime();
 					}
 				}
 				
@@ -672,13 +681,13 @@ final class JIComOxidRuntime {
 	}
 	
 	//since the IID is unique and we have to consider nested IIDs, this API will not work for component's IID
-//	static JIJavaCoClass getJavaComponentForIID(String uniqueIID) 
+//	static JILocalCoClass getJavaComponentForIID(String uniqueIID) 
 //	{
-//		JIJavaCoClass component = null;
+//		JILocalCoClass component = null;
 //		synchronized (mutex2) {
 //			for (int i = 0; i < listOfExportedJavaComponents.size(); i++ )
 //			{
-//				component = (JIJavaCoClass)listOfExportedJavaComponents.get(i);
+//				component = (JILocalCoClass)listOfExportedJavaComponents.get(i);
 //				if (component.isPresent(uniqueIID))
 //				{
 //					break;
@@ -690,13 +699,13 @@ final class JIComOxidRuntime {
 //		return component;
 //	}
 	
-	static JIJavaCoClass getJavaComponentFromIPID(String ipid) 
+	static JILocalCoClass getJavaComponentFromIPID(String ipid) 
 	{
-		JIJavaCoClass component = null;
+		JILocalCoClass component = null;
 		synchronized (mutex2) {
 			for (int i = 0; i < listOfExportedJavaComponents.size(); i++ )
 			{
-				component = (JIJavaCoClass)listOfExportedJavaComponents.get(i);
+				component = (JILocalCoClass)listOfExportedJavaComponents.get(i);
 				//this will be unique, no two components will ever have same IPID for an IID.They will have different IPIDs for same IIDs.
 				if (component.getIIDFromIpid(ipid) != null)
 				{

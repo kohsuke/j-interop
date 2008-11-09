@@ -11,8 +11,8 @@ import org.jinterop.dcom.core.JIProgId;
 import org.jinterop.dcom.core.JISession;
 import org.jinterop.dcom.core.JIString;
 import org.jinterop.dcom.core.JIVariant;
-import org.jinterop.dcom.win32.IJIDispatch;
-import org.jinterop.dcom.win32.JIComFactory;
+import org.jinterop.dcom.impls.JIObjectFactory;
+import org.jinterop.dcom.impls.automation.IJIDispatch;
 
 public class MSPowerPoint {
 
@@ -23,13 +23,13 @@ public class MSPowerPoint {
 	public MSPowerPoint(String address, String[] args) throws JIException, UnknownHostException
 	{
 		JISession session = JISession.createSession(args[1],args[2],args[3]);
-		comStub = new JIComServer(JIProgId.valueOf(session,"PowerPoint.Application"),address,session);
+		comStub = new JIComServer(JIProgId.valueOf("PowerPoint.Application"),address,session);
 	}
 
 	public void startPowerPoint() throws JIException
 	{
 		unknown = comStub.createInstance();
-		dispatch = (IJIDispatch)JIComFactory.createCOMInstance(JIComFactory.IID_IDispatch,unknown);
+		dispatch = (IJIDispatch)JIObjectFactory.narrowObject((IJIComObject)unknown.queryInterface(IJIDispatch.IID));
 	}
 
 	public void showPowerPoint() throws JIException
@@ -43,41 +43,41 @@ public class MSPowerPoint {
 	{
 		//JIVariant variant = dispatch.get("Presentations");
 		//JIInterfacePointer ptr = variant.getObjectAsInterfacePointer();
-		//IJIDispatch presentations = (IJIDispatch)JIComFactory.createCOMInstance(unknown,ptr);
-		IJIDispatch presentations = (IJIDispatch)dispatch.get("Presentations").getObjectAsComObject(unknown);
+		//IJIDispatch presentations = (IJIDispatch)JIObjectFactory.createCOMInstance(unknown,ptr);
+		IJIDispatch presentations = (IJIDispatch)JIObjectFactory.narrowObject(dispatch.get("Presentations").getObjectAsComObject());
 
 		for (int i = 0; i < 2; i++)
 		{
 			JIVariant results[] = presentations.callMethodA("Add",new Object[]{JIVariant.OPTIONAL_PARAM()});
 			//variant = results[0];
 			//ptr = variant.getObjectAsInterfacePointer();
-			//IJIDispatch presentation = (IJIDispatch)JIComFactory.createCOMInstance(unknown,ptr);
-			IJIDispatch presentation = (IJIDispatch)results[0].getObjectAsComObject(unknown);
+			//IJIDispatch presentation = (IJIDispatch)JIObjectFactory.createCOMInstance(unknown,ptr);
+			IJIDispatch presentation = (IJIDispatch)JIObjectFactory.narrowObject(results[0].getObjectAsComObject());
 			//variant = presentation.get("Slides");
 			//ptr = variant.getObjectAsInterfacePointer();
-			//IJIDispatch slides = (IJIDispatch)JIComFactory.createCOMInstance(unknown,ptr);
-			IJIDispatch slides = (IJIDispatch)presentation.get("Slides").getObjectAsComObject(unknown);
+			//IJIDispatch slides = (IJIDispatch)JIObjectFactory.createCOMInstance(unknown,ptr);
+			IJIDispatch slides = (IJIDispatch)JIObjectFactory.narrowObject(presentation.get("Slides").getObjectAsComObject());
 
 			results = slides.callMethodA("Add", new Object[]{new Integer(1),new Integer(1)});
 			//variant = results[0];
 			//ptr = variant.getObjectAsInterfacePointer();
-			IJIDispatch slide = (IJIDispatch)results[0].getObjectAsComObject(unknown);
+			IJIDispatch slide = (IJIDispatch)JIObjectFactory.narrowObject(results[0].getObjectAsComObject());
 
 			//variant = slide.get("Shapes");
 			//ptr = variant.getObjectAsInterfacePointer();
-			IJIDispatch shapes = (IJIDispatch)slide.get("Shapes").getObjectAsComObject(unknown);
+			IJIDispatch shapes = (IJIDispatch)JIObjectFactory.narrowObject(slide.get("Shapes").getObjectAsComObject());
 
 			//variant = shapes.get("Title");
 			//ptr = variant.getObjectAsInterfacePointer();
-			IJIDispatch shape = (IJIDispatch)shapes.get("Title").getObjectAsComObject(unknown);
+			IJIDispatch shape = (IJIDispatch)JIObjectFactory.narrowObject(shapes.get("Title").getObjectAsComObject());
 
 			//variant = shape.get("TextFrame");
 			//ptr = variant.getObjectAsInterfacePointer();
-			IJIDispatch textframe = (IJIDispatch)shape.get("TextFrame").getObjectAsComObject(unknown);
+			IJIDispatch textframe = (IJIDispatch)JIObjectFactory.narrowObject(shape.get("TextFrame").getObjectAsComObject());
 
 			//variant = textframe.get("TextRange");
 			//ptr = variant.getObjectAsInterfacePointer();
-			IJIDispatch textrange = (IJIDispatch)textframe.get("TextRange").getObjectAsComObject(unknown);
+			IJIDispatch textrange = (IJIDispatch)JIObjectFactory.narrowObject(textframe.get("TextRange").getObjectAsComObject());
 
 			if (i == 0)
 			{

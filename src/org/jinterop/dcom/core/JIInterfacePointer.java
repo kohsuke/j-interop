@@ -18,18 +18,15 @@
 package org.jinterop.dcom.core;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import ndr.NdrBuffer;
 import ndr.NdrException;
 import ndr.NetworkDataRepresentation;
 
-import org.jinterop.dcom.common.JIException;
-import org.jinterop.dcom.common.JIJavaCoClass;
 import org.jinterop.dcom.common.JISystem;
+import org.jinterop.dcom.impls.automation.IJIDispatch;
 
 /**<p> Class representing a Marshalled Interface Pointer. You will never use the members of this 
  * class directly, but always as an implementation of <code>IJIComObject</code> interface.
@@ -37,18 +34,19 @@ import org.jinterop.dcom.common.JISystem;
  * Sample Usage:-
  * <br><code>
  * IJIComObject connectionPointContainer = (IJIComObject)ieObject.queryInterface("B196B284-BAB4-101A-B69C-00AA00341D07"); <br>
- * JICallObject object = new JICallObject(connectionPointContainer.getIpid(),true); <br>
+ * JICallBuilder object = new JICallBuilder(connectionPointContainer.getIpid(),true); <br>
  * object.setOpnum(1); <br>
  * object.addInParamAsUUID("34A715A0-6587-11D0-924A-0020AFC7AC4D",JIFlags.FLAG_NULL); <br>
  * object.addOutParamAsObject(JIInterfacePointer.class,JIFlags.FLAG_NULL); <br>
  * Object[] objects = (Object[])connectionPointContainer.call(object); //find connection point <br>
  * JIInterfacePointer connectionPtr = (JIInterfacePointer)objects[0]; <br>
- * IJIComObject connectionPointer = JIComFactory.createCOMInstance(connectionPointContainer,connectionPtr); <br>
+ * IJIComObject connectionPointer = JIObjectFactory.createCOMInstance(connectionPointContainer,connectionPtr); <br>
  * </code>
  * </p>
  * @since 1.0
+ * 
  */
-public final class JIInterfacePointer implements Serializable {
+final class JIInterfacePointer implements Serializable {
 
 //	static boolean inTest = true;
 	
@@ -103,11 +101,11 @@ public final class JIInterfacePointer implements Serializable {
 		JIInterfacePointer ptr = new JIInterfacePointer();
 		if((FLAG & JIFlags.FLAG_REPRESENTATION_INTERFACEPTR_DECODE2) == JIFlags.FLAG_REPRESENTATION_INTERFACEPTR_DECODE2)
 		{
-			ptr.member = (JIPointer)JIUtil.deSerialize(ndr,new JIPointer(JIInterfacePointerBody.class,true),defferedPointers,FLAG,additionalData);
+			ptr.member = (JIPointer)JIMarshalUnMarshalHelper.deSerialize(ndr,new JIPointer(JIInterfacePointerBody.class,true),defferedPointers,FLAG,additionalData);
 		}
 		else
 		{
-			ptr.member = (JIPointer)JIUtil.deSerialize(ndr,new JIPointer(JIInterfacePointerBody.class),defferedPointers,FLAG,additionalData);
+			ptr.member = (JIPointer)JIMarshalUnMarshalHelper.deSerialize(ndr,new JIPointer(JIInterfacePointerBody.class),defferedPointers,FLAG,additionalData);
 		}
 		//the pointer is null, no point of it's wrapper being present, so return null from here as well
 		if (ptr.member.isNull())
@@ -167,6 +165,15 @@ public final class JIInterfacePointer implements Serializable {
      * @exclude
      * @return
      */
+    byte[] getOXID()
+    {
+    	return ((JIStdObjRef)((JIInterfacePointerBody)(member.getReferent())).getObjectReference(JIInterfacePointer.OBJREF_STANDARD)).getOxid();
+    }
+    
+    /**
+     * @exclude
+     * @return
+     */
     JIDualStringArray getStringBindings()
     {
     	return ((JIInterfacePointerBody)(member.getReferent())).getStringBindings();
@@ -184,45 +191,34 @@ public final class JIInterfacePointer implements Serializable {
     
     void encode (NetworkDataRepresentation ndr,List defferedPointers, int FLAG)
     {
-    	JIUtil.serialize(ndr,member.getClass(),member,defferedPointers,FLAG);	
-    }
-    
-    
- 
-    /** Returns an Interface Pointer representation for the Java Component
-     * 
-     * @param javaComponent
-     * @return
-     */
-    public static JIInterfacePointer getInterfacePointer(JISession session,JIJavaCoClass javaComponent) throws JIException
-    {
-    	return JIComOxidRuntime.getInterfacePointer(session,javaComponent);
-    }
 
-    /** Returns an Interface Pointer representation from raw bytes.
-     * 
-     * @param session
-     * @param rawBytes
-     * @return
-     * @throws JIException
-     */
-    public static JIInterfacePointer getInterfacePointer(JISession session,byte[] rawBytes) throws JIException
-    {
-    	NetworkDataRepresentation ndr = new NetworkDataRepresentation();
-		NdrBuffer ndrBuffer = new NdrBuffer(rawBytes,0);
-		ndr.setBuffer(ndrBuffer);
-		ndrBuffer.length = rawBytes.length;
-    	
-    	return JIInterfacePointer.decode(ndr, new ArrayList(), JIFlags.FLAG_REPRESENTATION_INTERFACEPTR_DECODE2, new HashMap());
+    	if ((FLAG & JIFlags.FLAG_REPRESENTATION_SET_JIINTERFACEPTR_NULL_FOR_VARIANT) == JIFlags.FLAG_REPRESENTATION_SET_JIINTERFACEPTR_NULL_FOR_VARIANT)
+		{
+    		//just encode a null.
+    		JIMarshalUnMarshalHelper.serialize(ndr,Integer.class,new Integer(0),defferedPointers,FLAG);
+    		return;
+		}
+    	JIMarshalUnMarshalHelper.serialize(ndr,member.getClass(),member,defferedPointers,FLAG);	
     }
     
+    
+
     public String toString()
 	{
-		String retVal = "MEOW:" + getIID() + " , " + getObjectReference(JIInterfacePointer.OBJREF_STANDARD);
+		String retVal = "JIInterfacePointer[IID:" + getIID() + " , ObjRef: " + getObjectReference(JIInterfacePointer.OBJREF_STANDARD) + "]";
 		return retVal;
 	}
 
-
+    public static boolean isOxidEqual(JIInterfacePointer src, JIInterfacePointer target)
+    {
+    	if (src == null || target == null)
+    	{
+    		throw new NullPointerException();
+    	}
+    	
+    	return Arrays.equals(src.getOXID(), target.getOXID());
+    }
+    
 //    public static void main(String[] args) {
 //    	
 //    	
@@ -471,7 +467,7 @@ class JIInterfacePointerBody implements Serializable
 	    }
 	    
 	    
-	    void encode(NetworkDataRepresentation ndr)
+	    void encode(NetworkDataRepresentation ndr, int FLAGS)
 	    {
 	    	
 	    	//now for length  
@@ -489,6 +485,16 @@ class JIInterfacePointerBody implements Serializable
 	    	
 	    	try {
 				rpc.core.UUID ipid2 = new rpc.core.UUID(iid);
+				
+				if ((FLAGS & JIFlags.FLAG_REPRESENTATION_USE_IUNKNOWN_IID) == JIFlags.FLAG_REPRESENTATION_USE_IUNKNOWN_IID )
+				{
+					ipid2 = new rpc.core.UUID(IJIComObject.IID);
+				}
+				else if ((FLAGS & JIFlags.FLAG_REPRESENTATION_USE_IDISPATCH_IID) == JIFlags.FLAG_REPRESENTATION_USE_IDISPATCH_IID)
+				{
+					ipid2 = new rpc.core.UUID(IJIDispatch.IID);
+				}
+				
 				ipid2.encode(ndr,ndr.getBuffer());
 			} catch (NdrException e) {
 				// TODO Auto-generated catch block

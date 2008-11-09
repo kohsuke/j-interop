@@ -28,6 +28,8 @@ import org.jinterop.dcom.common.JIErrorCodes;
 import org.jinterop.dcom.common.JIException;
 import org.jinterop.dcom.common.JIRuntimeException;
 import org.jinterop.dcom.common.JISystem;
+import org.jinterop.dcom.impls.JIObjectFactory;
+import org.jinterop.dcom.impls.automation.IJIDispatch;
 import org.jinterop.dcom.transport.JIComEndpoint;
 import org.jinterop.dcom.transport.JIComTransportFactory;
 import org.jinterop.winreg.IJIWinReg;
@@ -39,31 +41,25 @@ import rpc.FaultException;
 import rpc.Stub;
 
 
-/** <p>Represents a <code>COM</code> Server. This is the startup class for using j-Interop to interoperate 
- *  with a <code> COM </code> component.<br>
- *	
- *	Sample Usage:-
+/** Startup class representing a COM Server. 	
+ *  <p> 
+ *	Sample Usage :-
  *  <br>
  *  <code>
  *  
- *  JISession session = JISession.createSession("DOMAIN","USERNAME","PASSWORD"); <br>
- *	JIComServer excelServer = new JIComServer(JIProgId.valueOf(session,"Excel.Application"),address,session); <br>
- *  IJIComObject excelServerObject = excelServer.createInstance(); <br>
- *  
+ *  {@link JISession} session = JISession.createSession("DOMAIN","USERNAME","PASSWORD"); <br>
+ *	JIComServer excelServer = new JIComServer(JIProgId.valueOf("Excel.Application"),address,session); <br>
+ *  IJIComObject comObject = excelServer.createInstance(); <br>
  *  //Obtaining the IJIDispatch (if supported) <br>
- *  IJIDispatch dispatch = (IJIDispatch)JIComFactory.createCOMInstance(JIComFactory.IID_IDispatch,excelServerObject); <br>
- *  
+ *  {@link IJIDispatch} dispatch = (IJIDispatch){@link JIObjectFactory}.narrowObject(comObject.queryInterface(IJIDispatch.IID)); <br>
  *  </code>
  *  
- *  <br> Each instance of <code>JIComServer </code> belongs to 1 session only. The session is responsible for all the reference counting and subsequent garbage collection of this instance. 
- *  
+ *  <p>Each instance of this class is associated with a single session only. 
  *   
- *  </p>
- *
- * 
  * @since 1.0
+ * 
  */
-public class JIComServer extends Stub {
+public final class JIComServer extends Stub {
 	
 	private static Properties defaults = new Properties();
 	static {
@@ -98,9 +94,9 @@ public class JIComServer extends Stub {
 	/**<p> Instantiates a JIComServer represented by the interfacePointer param. There are cases where a COM server may hand down a 
 	 * reference to a different COM server(which may or may not be on the same machine) and we would like to hook in between. 
 	 * The <code>IJIComObject</code> interface is usable only in the context of the current JIComServer, but when the interfacePointer 
-	 * is of a completely different COM server, the JIComFactory APIs will not work. The reason is the interface pointer passed to those 
+	 * is of a completely different COM server, the JIObjectFactory APIs will not work. The reason is the interface pointer passed to those 
 	 * APIs expects to belong only to a single and same COM server (say 'A'). If by any chance, that COM server passes a reference to you 
-	 * of another COM server (say 'B') on a different machine, the <code>IJIComObject</code> so returned from <code>JIComFactory</code> APIs 
+	 * of another COM server (say 'B') on a different machine, the <code>IJIComObject</code> so returned from <code>JIObjectFactory</code> APIs 
 	 * will result in "Method not found" Exceptions (or others) since the pointer returned via that will always place calls to  'A' instead of 'B'. 
 	 * Under such scenarios you must use this API. This is not a usual case and for reasons related to nature of DCOM, will be very well documented 
 	 * in the Developers guide of your COM server.  
@@ -114,7 +110,7 @@ public class JIComServer extends Stub {
 	 * 						  The developer can send in the valid IP and if found in the interface pointer list will be used to talk to the target machine, overriding the other IP addresses present in the interface pointer. 
 	 * 						  If this IP is not found then the "machine name" binding will be used. If this param is <code>null</code> then the first binding obtained from the interface pointer is used. 
 	 */
-	public JIComServer(JISession session, JIInterfacePointer interfacePointer,String ipAddress) throws JIException
+	JIComServer(JISession session, JIInterfacePointer interfacePointer,String ipAddress) throws JIException
 	{
 		super();
 		
@@ -128,6 +124,10 @@ public class JIComServer extends Stub {
 			throw new JIException(JIErrorCodes.JI_SESSION_ALREADY_ESTABLISHED);
 		}
 
+		if (JISystem.getLogger().isLoggable(Level.INFO))
+		{
+			JISystem.internal_dumpMap();
+		}
 		
 		super.setTransportFactory(JIComTransportFactory.getSingleTon());
 		//now read the session and prepare information for the stub.
@@ -203,12 +203,26 @@ public class JIComServer extends Stub {
 		String address = binding.getNetworkAddress();
 		if (address.indexOf("[") == -1 )//this does not contain the port
 		{
+			String ipAddr = JISystem.getIPForHostName(address); //to use the binding supplied by the user.
+			if (ipAddr != null)
+			{
+				address = ipAddr;
+			}
 			//use 135
 			address = address + "[135]";
 		}
+		else
+		{
+			int index = address.indexOf("[");
+			String hostname = binding.getNetworkAddress().substring(0,index);
+			String ipAddr = JISystem.getIPForHostName(hostname); //to use the binding supplied by the user.
+			if (ipAddr != null)
+			{
+				address = ipAddr + address.substring(index);
+			}
+		}
 		super.setAddress("ncacn_ip_tcp:" + address);
 		this.session = session;
-		this.session.setStub(this);
 		this.session.setTargetServer(getAddress().substring(getAddress().indexOf(":") + 1,getAddress().indexOf("[")));
 		oxidResolver = new JIOxidResolver(((JIStdObjRef)interfacePointer.getObjectReference(JIInterfacePointer.OBJREF_STANDARD)).getOxid());
 		try {
@@ -305,33 +319,30 @@ public class JIComServer extends Stub {
 			super.getProperties().setProperty("rpc.ntlm.ntlm2", "true");
 		}
 		
+		address = binding.getNetworkAddress(); //this will always have the port.
+		int index = address.indexOf("[");
+		String hostname = binding.getNetworkAddress().substring(0,index);
+		String ipAddr = JISystem.getIPForHostName(hostname); //to use the binding supplied by the user.
+		if (ipAddr != null)
+		{
+			address = ipAddr + address.substring(index);
+		}
+		
 		//and currently only TCPIP is supported.
-		setAddress("ncacn_ip_tcp:" + binding.getNetworkAddress());
+		setAddress("ncacn_ip_tcp:" + address);
 		remunknownIPID = oxidResolver.getIPID();
-		interfacePtrCtor = interfacePointer;	
+		interfacePtrCtor = interfacePointer;
+		this.session.setStub(this);
+		
 	}
 	
 	
-	/**<p>Instantiates this object with JIProgId which is, according to MSDN:- <br> 
+	/**<p><code>JIProgId</code> based constructor with the host machine for COM server being <i>LOCALHOST</i>.
 	 *  
-	 *  <i>
-	 *  A ProgID, or programmatic identifier, is a registry entry that can be associated with a JIClsid. 
-	 *  The format of a ProgID is <Vendor>.<Component>.<Version>, separated by periods and with no spaces,
-	 *  as in Word.Document.6. Like the JIClsid, the ProgID identifies a class, but with less precision. 
-	 *  </i>
-	 *  
-	 *  <br> ProgId is searched for it's JIClsid in the target servers registry. For the very first run, calling
-	 *  with ProgId will result in 3 extra calls to the server (for JIClsid resolution). Subsequently the 
-	 *  j-Interop Library caches the JIClsid for this progId and uses that. It is also stored in a properties file (progIdVsClsidDB.properties) 
-	 *  and reffered from there. We can save on the 3 calls in the subsequent runs also. <br>
-	 *  
-	 *  This call works on the LOCALHOST.
-	 *  </p>
-	 *  
-	 * @param progId Id like "Excel.Application" , "TestCOMServer.Test123" e.t.c
-	 * @param session User's session.
-	 * @throws IllegalArgumentException raised when either progId or session is null.
-	 * @throws JIException
+	 * @param progId user-friendly string such as "Excel.Application" , "TestCOMServer.Test123" etc.
+	 * @param session session to be associated with. 
+	 * @throws JIException will <i>also</i> get thrown in case the <code>session</code> is associated with another server already.
+	 * @throws IllegalArgumentException raised when either <code>progId</code> or <code>session</code> is <code>null</code>.
 	 * @throws UnknownHostException 
 	 */
 	public JIComServer(JIProgId progId,JISession session) throws JIException, UnknownHostException
@@ -339,22 +350,12 @@ public class JIComServer extends Stub {
 		this(progId,InetAddress.getLocalHost().getHostAddress(),session);
 	}
 	
-	/** <p>Instantiates this object with JIClsid which is, according to MSDN:- <br> 
+	/** <p><code>{@link JIClsid}</code> based constructor with the host machine for COM server being <i>LOCALHOST</i>.
 	 *  
-	 *  <i>
-	 *  A universally unique identifier (UUID) that identifies a type of Component Object Model (COM) object.  
-	 *  Each type of COM object item has its JIClsid in the registry so that it can be loaded and used by other
-	 *  applications. For example, a spreadsheet may create worksheet items, chart items, and macrosheet items.
-	 *  Each of these item types has its own JIClsid that uniquely identifies it to the system. 
-	 *  </i><br>
-	 *  
-	 *  This call works on the LOCALHOST.
-	 *  </p>
-	 *  
-	 * @param clsid 128 bit uuid like "00024500-0000-0000-C000-000000000046".
-	 * @param session User's session.
-	 * @throws IllegalArgumentException raised when either clsid or session is null.
-	 * @throws JIException
+	 * @param clsid 128 bit string such as "00024500-0000-0000-C000-000000000046".
+	 * @param session session to be associated with. 
+	 * @throws JIException will <i>also</i> get thrown in case the <code>session</code> is associated with another server already.
+	 * @throws IllegalArgumentException raised when either <code>clsid</code> or <code>session</code> is <code>null</code>.
 	 * @throws UnknownHostException 
 	 */
 	public JIComServer(JIClsid clsid,JISession session) throws IllegalArgumentException,JIException, UnknownHostException
@@ -362,25 +363,13 @@ public class JIComServer extends Stub {
 		this(clsid,InetAddress.getLocalHost().getHostAddress(),session);
 	}
 	
-	/**<p> Instantiates this object with JIProgId which is, according to MSDN:- <p> 
+	/**<p>Refer {@link #JIComServer(JIProgId, JISession)} for details. 
 	 *  
-	 *  <i>
-	 *  A ProgID, or programmatic identifier, is a registry entry that can be associated with a JIClsid. 
-	 *  The format of a ProgID is <Vendor>.<Component>.<Version>, separated by periods and with no spaces,
-	 *  as in Word.Document.6. Like the JIClsid, the ProgID identifies a class, but with less precision. 
-	 *  </i>
-	 *  
-	 *  <br> ProgId is searched for it's JIClsid in the target servers registry. For the very first run, calling
-	 *  with ProgId will result in 3 extra calls to the server (for JIClsid resolution). Subsequently the 
-	 *  j-Interop Library caches the JIClsid for this progId and uses that. It is also stored in a properties file (progIdVsClsidDB.properties) 
-	 *  and reffered from there. We can save on the 3 calls in the subsequent runs also. <br>
-	 *  </p>
-	 *  
-	 * @param progId Id like "Excel.Application" , "TestCOMServer.Test123" e.t.c
-	 * @param address address of the server where the <code>COM<code> object resides . This should be in the IEEE IP format (e.g. 192.168.170.6) or HostName.
-	 * @param session User's session.
-	 * @throws IllegalArgumentException raised when either progId or address or session is null.
-	 * @throws JIException
+	 * @param progId user-friendly string such as "Excel.Application" , "TestCOMServer.Test123" etc.
+	 * @param address address of the host where the <code>COM</code> object resides.This should be in the IEEE IP format (e.g. 192.168.170.6) or a resolvable HostName.
+	 * @param session session to be associated with. 
+	 * @throws JIException will <i>also</i> get thrown in case the <code>session</code> is associated with another server already.
+	 * @throws IllegalArgumentException raised when any of the parameters is <code>null</code>.
 	 * @throws UnknownHostException 
 	 */
 	public JIComServer(JIProgId progId,String address, JISession session) throws JIException, UnknownHostException
@@ -400,27 +389,21 @@ public class JIComServer extends Stub {
 		address = address.trim();
 		address = InetAddress.getByName(address).getHostAddress();
 		
+		progId.setSession(session);
 		progId.setServer(address);
 		address = "ncacn_ip_tcp:"+address+"[135]";
 		JIClsid clsid = progId.getCorrespondingCLSID();
 		initialise(clsid,address,session);
 	}
 	
-	/** <p>Instantiates this object with JIClsid which is, according to MSDN:- <br> 
+	/** <p>Refer {@link #JIComServer(JIClsid, JISession)} for details. 
 	 *  
-	 *  <i>
-	 *  A universally unique identifier (UUID) that identifies a type of Component Object Model (COM) object.  
-	 *  Each type of COM object item has its JIClsid in the registry so that it can be loaded and used by other
-	 *  applications. For example, a spreadsheet may create worksheet items, chart items, and macrosheet items.
-	 *  Each of these item types has its own JIClsid that uniquely identifies it to the system. An IllegalArgumentException raised when either clsid or address or session is null. 
-	 *  </i>
 	 *  
-	 *  </p>
-	 *  
-	 * @param clsid 128 bit uuid like "00024500-0000-0000-C000-000000000046".
-	 * @param address address of the server where the <code>COM<code> object resides . This should be in the IEEE IP format (e.g. 192.168.170.6) or HostName.
-	 * @param session User's session.
-	 * @throws JIException
+	 * @param clsid 128 bit string such as "00024500-0000-0000-C000-000000000046".
+	 * @param address address of the host where the <code>COM</code> object resides.This should be in the IEEE IP format (e.g. 192.168.170.6) or a resolvable HostName.
+	 * @param session session to be associated with. 
+	 * @throws JIException will <i>also</i> get thrown in case the <code>session</code> is associated with another server already.
+	 * @throws IllegalArgumentException raised when any of the parameters is <code>null</code>.
 	 * @throws UnknownHostException 
 	 */
 	public JIComServer(JIClsid clsid,String address, JISession session) throws JIException, UnknownHostException
@@ -462,9 +445,14 @@ public class JIComServer extends Stub {
 //			super.getProperties().setProperty("rpc.ntlm.keyLength", "128");
 //			super.getProperties().setProperty("rpc.ntlm.ntlm2", "true");
 //		}
+		
+		if (JISystem.getLogger().isLoggable(Level.INFO))
+		{
+			JISystem.internal_dumpMap();
+		}
+		
 		this.clsid = clsid.getCLSID().toUpperCase();
 		this.session = session;
-		this.session.setStub(this);
 		this.session.setTargetServer(address.substring(address.indexOf(":") + 1,address.indexOf("[")));
 		try{
 			init();
@@ -487,15 +475,7 @@ public class JIComServer extends Stub {
 					//first create the registry entries.
 					try {
 						IJIWinReg registry = null;
-//						try {
-							registry = JIWinRegFactory.getSingleTon().getWinreg(new JIDefaultAuthInfoImpl(session.getDomain(),session.getUserName(),session.getPassword()),session.getTargetServer(),true);
-//						} catch (UnsupportedEncodingException e2) {
-//							try {
-//								registry = JIWinRegFactory.getSingleTon().getWinreg(new JIDefaultAuthInfoImpl(session.getDomain(),session.getUserName(),URLEncoder.encode(session.getPassword(),System.getProperty("file.encoding"))),session.getTargetServer(),true);
-//							} catch (UnsupportedEncodingException e1) {
-//								throw new JIException(JIErrorCodes.JI_WINREG_EXCEPTION2);
-//							}
-//						}
+						registry = JIWinRegFactory.getSingleTon().getWinreg(new JIDefaultAuthInfoImpl(session.getDomain(),session.getUserName(),session.getPassword()),session.getTargetServer(),true);
 						JIPolicyHandle hkcr = registry.winreg_OpenHKCR();
 						JIPolicyHandle key = registry.winreg_CreateKey(hkcr,"CLSID\\{" + this.clsid + "}",IJIWinReg.REG_OPTION_NON_VOLATILE,IJIWinReg.KEY_ALL_ACCESS );
 						registry.winreg_SetValue(key,"AppID",("{" + this.clsid + "}").getBytes(),false,false);
@@ -524,6 +504,9 @@ public class JIComServer extends Stub {
 			}
 			
 		}
+		
+		this.session.setStub(this);
+		
 	}
 	
 	
@@ -534,11 +517,12 @@ public class JIComServer extends Stub {
 			return;
 		}
 		
+		boolean attachcomplete = false;
 		try {
-			
-			
 			syntax = "99fcfec4-5260-101b-bbcb-00aa0021347a:0.0";
 			attach();
+			// socket to COM server is established
+			attachcomplete = true;
 			//first send an AlterContext to the IID of the IOxidResolver
 			getEndpoint().getSyntax().setUuid(new rpc.core.UUID("99fcfec4-5260-101b-bbcb-00aa0021347a"));
 			getEndpoint().getSyntax().setVersion(0,0);
@@ -564,6 +548,21 @@ public class JIComServer extends Stub {
 		{
 			remoteActivation = null;
 			throw new JIException(e1);
+		}
+		finally
+		{
+			//the only time remactivation will be null will be case of an exception.
+			if (attachcomplete && remoteActivation == null)
+			{
+				try {
+					detach();
+				} catch (IOException e) {
+					if (JISystem.getLogger().isLoggable(Level.WARNING))
+					{
+						JISystem.getLogger().warning("Unable to detach during init: " + e);
+					}
+				}
+			}
 		}
 
 		// Now will setup syntax for IRemUnknown and the address.
@@ -630,7 +629,19 @@ public class JIComServer extends Stub {
 			super.getProperties().setProperty("rpc.ntlm.keyLength", "128");
 			super.getProperties().setProperty("rpc.ntlm.ntlm2", "true");
 		}
-		setAddress("ncacn_ip_tcp:" + binding.getNetworkAddress());
+		
+		String address = binding.getNetworkAddress(); //this will always have the port.
+		int index = address.indexOf("[");
+		String hostname = binding.getNetworkAddress().substring(0,index);
+		String ipAddr = JISystem.getIPForHostName(hostname); //to use the binding supplied by the user.
+		if (ipAddr != null)
+		{
+			address = ipAddr + address.substring(index);
+		}
+		
+		//and currently only TCPIP is supported.
+		setAddress("ncacn_ip_tcp:" + address);
+//		setAddress("ncacn_ip_tcp:" + binding.getNetworkAddress());
 		remunknownIPID = remoteActivation.getIPID();
  	}
 
@@ -640,7 +651,6 @@ public class JIComServer extends Stub {
 	IJIComObject getInterface(String iid,String ipidOfTheTargetUnknown) throws JIException 
 	{
 		IJIComObject retval = null;
-		byte[] oid = null;
 		//this is still essentially serial, since all threads will have to wait for mutex before 
 		//entering addToSession.
 		synchronized (mutex) {
@@ -649,7 +659,7 @@ public class JIComServer extends Stub {
 			//setObject(ipid);
 			
 			//JIRemUnknown reqUnknown = new JIRemUnknown(unknownIPID,iid,5);
-			JIRemUnknown reqUnknown = new JIRemUnknown(ipidOfTheTargetUnknown,iid,5);
+			JIRemUnknown reqUnknown = new JIRemUnknown(ipidOfTheTargetUnknown,iid);
 			try {
 				call(Endpoint.IDEMPOTENT,reqUnknown);
 			}catch(FaultException e)
@@ -664,14 +674,17 @@ public class JIComServer extends Stub {
 				throw new JIException(e1);
 			}
 			
-			retval = getObject(reqUnknown.getObjectReference().getIpid(),iid);
-			oid = reqUnknown.getObjectReference().getObjectId();
+			retval = JIFrameworkHelper.instantiateComObject(session, reqUnknown.getInterfacePointer());
+			//increasing the reference count.
+			retval.addRef();
 			//for querying dispatch we can't send another call
 			if (!iid.equalsIgnoreCase("00020400-0000-0000-c000-000000000046"))
 			{
+				boolean success = true;
+				((JIComObjectImpl)retval).setIsDual(true);
 				//now to check whether it supports IDispatch
 				//IDispatch 00020400-0000-0000-c000-000000000046
-				JIRemUnknown dispatch = new JIRemUnknown(reqUnknown.getObjectReference().getIpid(),"00020400-0000-0000-c000-000000000046",5);
+				JIRemUnknown dispatch = new JIRemUnknown(retval.getIpid(),"00020400-0000-0000-c000-000000000046");
 				try {
 					call(Endpoint.IDEMPOTENT,dispatch);
 				}catch(FaultException e)
@@ -681,37 +694,28 @@ public class JIComServer extends Stub {
 					throw new JIException(JIErrorCodes.RPC_E_UNEXPECTED,e);
 				}catch (JIRuntimeException e1)
 				{
-					//will eat this exception here. Since the successful flag will be checked.
-					//throw new JIException(e1);
+					//will eat this exception here. 
+					((JIComObjectImpl)retval).setIsDual(false);
+					success = false;
 				}
 				
-				if (dispatch.isSuccessful() && dispatch.getHresult() == 0)
+				if (success)
 				{
 					//which means that IDispatch is supported
-					((JIComObjectImpl)retval).isDual = true;
-					//session.addToSession(dispatch.getObjectReference().getIpid(),dispatch.getObjectReference().getObjectId());
-					session.releaseRef(dispatch.getObjectReference().getIpid());
+					session.releaseRef(dispatch.getInterfacePointer().getIPID());
 				}
 			}
-			
-		//session.addToSession(retval.getIpid(),oid);
-			
 		}
 	
-		session.addToSession(retval,oid);
 		return retval;
 		
 	}
 	
 	
-	private IJIComObject getObject(String ipid,String iid)
-	{
-		return new JIComObjectImpl(this,ipid,iid,session);
-	}
 	
 	
-	/** Returns a <code>IJIComObject</code> representing the <code>COM</code> Server. Not to be used with <code>JIComServer(JISession,JIInterfacePointer,String)</code> ctor,
-	 * Use getInstance() instead.
+	
+	/**Returns an <code>IJIComObject</code> representing the COM Server. 
 	 * 
 	 * @return
 	 * @throws JIException
@@ -723,7 +727,7 @@ public class JIComServer extends Stub {
 			throw new IllegalStateException(JISystem.getLocalizedMessage(JIErrorCodes.JI_COMSTUB_WRONGCALLCREATEINSTANCE));
 		}
 		IJIComObject comObject = null;
-		byte[] oid = null;
+		
 		//This method is still essentially serial, since all threads will have to stop at mutex and then 
 		//go to addToSession after it (since there is no condition).
 		synchronized (mutex) {
@@ -731,9 +735,9 @@ public class JIComServer extends Stub {
 			{
 				throw new JIException(JIErrorCodes.JI_OBJECT_ALREADY_INSTANTIATED,(Throwable)null); 
 			}
-			JIStdObjRef objRef = (JIStdObjRef)(remoteActivation.getMInterfacePointer().getObjectReference(JIInterfacePointer.OBJREF_STANDARD));
-			comObject = getObject(objRef.getIpid(),IJIUnknown.IID);
-			oid = objRef.getObjectId();
+//			JIStdObjRef objRef = (JIStdObjRef)(remoteActivation.getMInterfacePointer().getObjectReference(JIInterfacePointer.OBJREF_STANDARD));
+//			comObject = getObject(objRef.getIpid(),IJIUnknown.IID);
+			comObject = JIFrameworkHelper.instantiateComObject(session, remoteActivation.getMInterfacePointer());
 			if (remoteActivation.isDual)
 			{
 				//IJIComObject comObject2 = getObject(remoteActivation.dispIpid,"00020400-0000-0000-c000-000000000046");
@@ -741,12 +745,17 @@ public class JIComServer extends Stub {
 				//session.addToSession(comObject2,remoteActivation.dispOid);
 				session.releaseRef(remoteActivation.dispIpid);
 				remoteActivation.dispIpid = null;
-				((JIComObjectImpl)comObject).isDual = true;
+				((JIComObjectImpl)comObject).setIsDual(true);
 			}
+			else
+			{
+				((JIComObjectImpl)comObject).setIsDual(false);
+			}
+			//increasing the reference count.
+			comObject.addRef();
 			serverInstantiated = true;
 		}
 		
-		session.addToSession(comObject,oid);
 		return comObject;
 	}
 
@@ -756,7 +765,7 @@ public class JIComServer extends Stub {
 	 * @return
 	 * @throws JIException
 	 */
-	public IJIComObject getInstance() throws JIException
+	IJIComObject getInstance() throws JIException
 	{
 		if (interfacePtrCtor == null)
 		{
@@ -772,12 +781,14 @@ public class JIComServer extends Stub {
 				throw new JIException(JIErrorCodes.JI_OBJECT_ALREADY_INSTANTIATED,(Throwable)null); 
 			}
 			
-			JIStdObjRef objRef = (JIStdObjRef)(interfacePtrCtor.getObjectReference(JIInterfacePointer.OBJREF_STANDARD));
-			comObject = getObject(objRef.getIpid(),interfacePtrCtor.getIID());
+//			JIStdObjRef objRef = (JIStdObjRef)(interfacePtrCtor.getObjectReference(JIInterfacePointer.OBJREF_STANDARD));
+//			comObject = getObject(objRef.getIpid(),interfacePtrCtor.getIID());
+			comObject = JIFrameworkHelper.instantiateComObject(session,interfacePtrCtor);
+			//increasing the reference count.
+			comObject.addRef();
 			serverInstantiated = true;
 		}
 		
-		session.addToSession(comObject,interfacePtrCtor.getOID());
 		return comObject;
 	}
 
@@ -809,7 +820,7 @@ public class JIComServer extends Stub {
 	 * @return
 	 * @throws JIException
 	 */ 
-	Object[] call(JICallObject obj,String targetIID) throws JIException
+	Object[] call(JICallBuilder obj,String targetIID) throws JIException
 	{
 		return call(obj, targetIID, session.getGlobalSocketTimeout());
 	}
@@ -823,7 +834,7 @@ public class JIComServer extends Stub {
 	 * @return
 	 * @throws JIException
 	 */ 
-	Object[] call(JICallObject obj,String targetIID, int socketTimeout) throws JIException
+	Object[] call(JICallBuilder obj,String targetIID, int socketTimeout) throws JIException
 	{
 		synchronized (mutex) {
 			
@@ -878,7 +889,7 @@ public class JIComServer extends Stub {
 		return remoteActivation == null ? interfacePtrCtor : remoteActivation.getMInterfacePointer();
 	}
 
-	void addRef_ReleaseRef(JICallObject obj) throws JIException
+	void addRef_ReleaseRef(JICallBuilder obj) throws JIException
 	{
 		synchronized (mutex) {
 		
@@ -888,9 +899,9 @@ public class JIComServer extends Stub {
 			}
 			//now also set the Object ID for IRemUnknown call this will be the IPID of the returned JIRemActivation or IOxidResolver
 			obj.setParentIpid(remunknownIPID);
-			
+			obj.attachSession(session);
 			try {
-				call(obj,JIRemUnknown.IID);
+				call(obj,JIRemUnknown.IID_IUnknown);
 			} catch (JIRuntimeException e1)
 			{
 				throw new JIException(e1);

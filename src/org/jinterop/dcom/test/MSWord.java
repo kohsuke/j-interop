@@ -11,8 +11,8 @@ import org.jinterop.dcom.core.JIProgId;
 import org.jinterop.dcom.core.JISession;
 import org.jinterop.dcom.core.JIString;
 import org.jinterop.dcom.core.JIVariant;
-import org.jinterop.dcom.win32.IJIDispatch;
-import org.jinterop.dcom.win32.JIComFactory;
+import org.jinterop.dcom.impls.JIObjectFactory;
+import org.jinterop.dcom.impls.automation.IJIDispatch;
 
 public class MSWord {
 
@@ -25,12 +25,12 @@ public class MSWord {
 	public MSWord(String address, String[] args) throws JIException, UnknownHostException {
 		JISession session = JISession.createSession(args[1], args[2], args[3]);
 		session.useSessionSecurity(true);
-		comStub = new JIComServer(JIProgId.valueOf(session, "Word.Application"), address, session);
+		comStub = new JIComServer(JIProgId.valueOf("Word.Application"), address, session);
 	}
 
 	public void startWord() throws JIException {
 		unknown = comStub.createInstance();
-		dispatch = (IJIDispatch) JIComFactory.createCOMInstance(JIComFactory.IID_IDispatch, unknown);
+		dispatch = (IJIDispatch) JIObjectFactory.narrowObject(unknown.queryInterface(IJIDispatch.IID));
 	}
 
 	public void showWord() throws JIException {
@@ -53,7 +53,7 @@ public class MSWord {
 		JIVariant variant = dispatch.get("Documents");
 
 		System.out.println("Open document...");
-		IJIDispatch documents = (IJIDispatch) variant.getObjectAsComObject(unknown);
+		IJIDispatch documents = (IJIDispatch) JIObjectFactory.narrowObject(variant.getObjectAsComObject());
 		JIString filePath = new JIString("c:\\temp\\test.doc");
 		JIVariant variant2[] = documents.callMethodA("open", new Object[] { filePath, JIVariant.OPTIONAL_PARAM(), JIVariant.OPTIONAL_PARAM(), JIVariant.OPTIONAL_PARAM() ,JIVariant.OPTIONAL_PARAM() ,JIVariant.OPTIONAL_PARAM() ,JIVariant.OPTIONAL_PARAM() ,JIVariant.OPTIONAL_PARAM() ,JIVariant.OPTIONAL_PARAM() ,JIVariant.OPTIONAL_PARAM() ,JIVariant.OPTIONAL_PARAM() ,JIVariant.OPTIONAL_PARAM() ,JIVariant.OPTIONAL_PARAM() ,JIVariant.OPTIONAL_PARAM() , JIVariant.OPTIONAL_PARAM() });
 
@@ -62,15 +62,15 @@ public class MSWord {
 		sleep(10);
 
 		System.out.println("Get content...");
-		IJIDispatch document = (IJIDispatch) variant2[0].getObjectAsComObject(unknown);
+		IJIDispatch document = (IJIDispatch) JIObjectFactory.narrowObject(variant2[0].getObjectAsComObject());
 		variant = document.get("Content");
-		IJIDispatch range = (IJIDispatch) variant.getObjectAsComObject(unknown);
+		IJIDispatch range = (IJIDispatch) JIObjectFactory.narrowObject(variant.getObjectAsComObject());
 
 		//10
 		sleep(10);
 		System.out.println("Running find...");
 		variant = range.get("Find");
-		IJIDispatch find = (IJIDispatch) variant.getObjectAsComObject(unknown);
+		IJIDispatch find = (IJIDispatch) JIObjectFactory.narrowObject(variant.getObjectAsComObject());
 
 		//2
 		sleep(5);

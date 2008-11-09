@@ -8,13 +8,13 @@ import org.jinterop.dcom.core.JIComServer;
 import org.jinterop.dcom.core.JIProgId;
 import org.jinterop.dcom.core.JISession;
 import org.jinterop.dcom.core.JIString;
-import org.jinterop.dcom.win32.FuncDesc;
-import org.jinterop.dcom.win32.IJIDispatch;
-import org.jinterop.dcom.win32.IJITypeInfo;
-import org.jinterop.dcom.win32.IJITypeLib;
-import org.jinterop.dcom.win32.JIComFactory;
-import org.jinterop.dcom.win32.TypeAttr;
-import org.jinterop.dcom.win32.VarDesc;
+import org.jinterop.dcom.impls.JIObjectFactory;
+import org.jinterop.dcom.impls.automation.FuncDesc;
+import org.jinterop.dcom.impls.automation.IJIDispatch;
+import org.jinterop.dcom.impls.automation.IJITypeInfo;
+import org.jinterop.dcom.impls.automation.IJITypeLib;
+import org.jinterop.dcom.impls.automation.TypeAttr;
+import org.jinterop.dcom.impls.automation.VarDesc;
 
 public class MSTypeLibraryBrowser {
 
@@ -25,13 +25,13 @@ public class MSTypeLibraryBrowser {
 	public MSTypeLibraryBrowser(String address, String args[]) throws JIException, UnknownHostException
 	{
 		JISession session = JISession.createSession(args[1],args[2],args[3]);
-		comServer = new JIComServer(JIProgId.valueOf(session,"InternetExplorer.Application"),address,session);
+		comServer = new JIComServer(JIProgId.valueOf("InternetExplorer.Application"),address,session);
 	}
 
 	public void start() throws JIException
 	{
 		unknown = comServer.createInstance();
-		dispatch = (IJIDispatch)JIComFactory.createCOMInstance(JIComFactory.IID_IDispatch,unknown);
+		dispatch = (IJIDispatch)JIObjectFactory.narrowObject(unknown.queryInterface(IJIDispatch.IID));
 		IJITypeInfo typeInfo = dispatch.getTypeInfo(0);
 		IJITypeLib typeLib = (IJITypeLib)((Object[])typeInfo.getContainingTypeLib())[0];
 		Object[] result = typeLib.getDocumentation(-1);

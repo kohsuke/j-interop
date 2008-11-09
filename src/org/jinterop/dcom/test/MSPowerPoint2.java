@@ -14,8 +14,8 @@ import org.jinterop.dcom.core.JIProgId;
 import org.jinterop.dcom.core.JISession;
 import org.jinterop.dcom.core.JIString;
 import org.jinterop.dcom.core.JIVariant;
-import org.jinterop.dcom.win32.IJIDispatch;
-import org.jinterop.dcom.win32.JIComFactory;
+import org.jinterop.dcom.impls.JIObjectFactory;
+import org.jinterop.dcom.impls.automation.IJIDispatch;
 
 public class MSPowerPoint2 {
 
@@ -26,13 +26,13 @@ public class MSPowerPoint2 {
 	public MSPowerPoint2(String address, String[] args) throws JIException, UnknownHostException
 	{
 		JISession session = JISession.createSession(args[1],args[2],args[3]);
-		comStub = new JIComServer(JIProgId.valueOf(session,"PowerPoint.Application"),address,session);
+		comStub = new JIComServer(JIProgId.valueOf("PowerPoint.Application"),address,session);
 	}
 
 	public void startPowerPoint() throws JIException
 	{
 		unknown = comStub.createInstance();
-		dispatch = (IJIDispatch)JIComFactory.createCOMInstance(JIComFactory.IID_IDispatch,unknown);
+		dispatch = (IJIDispatch)JIObjectFactory.narrowObject(unknown.queryInterface(IJIDispatch.IID));
 	}
 
 	public void showPowerPoint() throws JIException
@@ -45,17 +45,17 @@ public class MSPowerPoint2 {
 
 	public IJIDispatch openPresentation(String fullEscapedPath) throws JIException, InterruptedException
 	{
-		IJIDispatch presentations = (IJIDispatch)dispatch.get("Presentations").getObjectAsComObject(unknown);
+		IJIDispatch presentations = (IJIDispatch)JIObjectFactory.narrowObject(dispatch.get("Presentations").getObjectAsComObject());
 		JIVariant[] result = presentations.callMethodA("Open",new Object[]{new JIString(fullEscapedPath),JIVariant.OPTIONAL_PARAM(),JIVariant.OPTIONAL_PARAM(),JIVariant.OPTIONAL_PARAM()});
-		return (IJIDispatch)result[0].getObjectAsComObject(dispatch);
+		return (IJIDispatch)JIObjectFactory.narrowObject(result[0].getObjectAsComObject());
 	}
 
 	public IJIDispatch runPresentation(IJIDispatch activePresentation) throws JIException
 	{
-		IJIDispatch slideShowSettings = (IJIDispatch)activePresentation.get("SlideShowSettings").getObjectAsComObject(unknown);
+		IJIDispatch slideShowSettings = (IJIDispatch)JIObjectFactory.narrowObject(activePresentation.get("SlideShowSettings").getObjectAsComObject());
 		System.out.println("Running Slide show : " + activePresentation.get("Name").getObjectAsString().getString());
-		IJIDispatch slideShowWindow = (IJIDispatch)slideShowSettings.callMethodA("Run").getObjectAsComObject(unknown);
-		IJIDispatch slideShowView = (IJIDispatch)slideShowWindow.get("View").getObjectAsComObject(unknown);
+		IJIDispatch slideShowWindow = (IJIDispatch)JIObjectFactory.narrowObject(slideShowSettings.callMethodA("Run").getObjectAsComObject());
+		IJIDispatch slideShowView = (IJIDispatch)JIObjectFactory.narrowObject(slideShowWindow.get("View").getObjectAsComObject());
 		return slideShowView;
 	}
 

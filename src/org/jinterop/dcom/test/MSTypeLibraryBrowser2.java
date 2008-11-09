@@ -12,17 +12,17 @@ import org.jinterop.dcom.core.JIProgId;
 import org.jinterop.dcom.core.JISession;
 import org.jinterop.dcom.core.JIString;
 import org.jinterop.dcom.core.JIStruct;
-import org.jinterop.dcom.win32.ElemDesc;
-import org.jinterop.dcom.win32.FuncDesc;
-import org.jinterop.dcom.win32.IJIDispatch;
-import org.jinterop.dcom.win32.IJITypeInfo;
-import org.jinterop.dcom.win32.IJITypeLib;
-import org.jinterop.dcom.win32.IMPLETYPEFLAGS;
-import org.jinterop.dcom.win32.JIComFactory;
-import org.jinterop.dcom.win32.TYPEKIND;
-import org.jinterop.dcom.win32.TypeAttr;
-import org.jinterop.dcom.win32.TypeDesc;
-import org.jinterop.dcom.win32.VarDesc;
+import org.jinterop.dcom.impls.JIObjectFactory;
+import org.jinterop.dcom.impls.automation.ElemDesc;
+import org.jinterop.dcom.impls.automation.FuncDesc;
+import org.jinterop.dcom.impls.automation.IJIDispatch;
+import org.jinterop.dcom.impls.automation.IJITypeInfo;
+import org.jinterop.dcom.impls.automation.IJITypeLib;
+import org.jinterop.dcom.impls.automation.ImplTypeFlags;
+import org.jinterop.dcom.impls.automation.TypeAttr;
+import org.jinterop.dcom.impls.automation.TypeDesc;
+import org.jinterop.dcom.impls.automation.TypeKind;
+import org.jinterop.dcom.impls.automation.VarDesc;
 
 public class MSTypeLibraryBrowser2 {
 
@@ -34,13 +34,13 @@ public class MSTypeLibraryBrowser2 {
 	{
 		JISession session = JISession.createSession(args[1],args[2],args[3]);
 		session.useSessionSecurity(true);
-		comServer = new JIComServer(JIProgId.valueOf(session,args[4]),address,session);
+		comServer = new JIComServer(JIProgId.valueOf(args[4]),address,session);
 	}
 
 	public void start() throws JIException
 	{
 		unknown = comServer.createInstance();
-		dispatch = (IJIDispatch)JIComFactory.createCOMInstance(JIComFactory.IID_IDispatch,unknown);
+		dispatch = (IJIDispatch)JIObjectFactory.narrowObject(unknown.queryInterface(IJIDispatch.IID));
 		IJITypeLib typeLib = (IJITypeLib)((Object[])dispatch.getTypeInfo(0).getContainingTypeLib())[0];
 		Object[] result = typeLib.getDocumentation(-1);
 		System.out.println("Name: " + ((JIString)result[0]).getString());
@@ -65,13 +65,13 @@ public class MSTypeLibraryBrowser2 {
 			TypeAttr typeAttr = typeInfo.getTypeAttr();
 			IJITypeInfo ptempInfo = null;
 			TypeAttr pTempAttr = null;
-			if(typeAttr.typekind != TYPEKIND.TKIND_DISPATCH.intValue() && typeAttr.typekind != TYPEKIND.TKIND_COCLASS.intValue())
+			if(typeAttr.typekind != TypeKind.TKIND_DISPATCH.intValue() && typeAttr.typekind != TypeKind.TKIND_COCLASS.intValue())
 			{
 				int p = 0;
 				p++;
 			}
 
-			if(typeAttr.typekind == TYPEKIND.TKIND_COCLASS.intValue())
+			if(typeAttr.typekind == TypeKind.TKIND_COCLASS.intValue())
 			{
 
 				for (int i = 0;i<typeAttr.cImplTypes;i++)
@@ -83,7 +83,7 @@ public class MSTypeLibraryBrowser2 {
 						continue;
 					}
 
-					if((nFlags & IMPLETYPEFLAGS.IMPLTYPEFLAG_FDEFAULT) == IMPLETYPEFLAGS.IMPLTYPEFLAG_FDEFAULT)
+					if((nFlags & ImplTypeFlags.IMPLTYPEFLAG_FDEFAULT) == ImplTypeFlags.IMPLTYPEFLAG_FDEFAULT)
 					{
 						int hRefType = -1;
 						try{
@@ -154,16 +154,16 @@ public class MSTypeLibraryBrowser2 {
 				switch(pFuncDesc.invokeKind)
 				{
 
-				case 2://INVOKEKIND.INVOKE_PROPERTYGET.intValue():
+				case 2://InvokeKind.INVOKE_PROPERTYGET.intValue():
 					System.out.println("PropertyGet");
 					break;
-				case 4://INVOKEKIND.INVOKE_PROPERTYPUT.intValue():
+				case 4://InvokeKind.INVOKE_PROPERTYPUT.intValue():
 					System.out.println("PropertyPut");
 					break;
-				case 8://INVOKEKIND.INVOKE_PROPERTYPUTREF.intValue():
+				case 8://InvokeKind.INVOKE_PROPERTYPUTREF.intValue():
 					System.out.println("PropertyPutRef");
 					break;
-				case 1://INVOKEKIND.INVOKE_FUNC.intValue():
+				case 1://InvokeKind.INVOKE_FUNC.intValue():
 					System.out.println("DispatchMethod");
 					break;
 				default:

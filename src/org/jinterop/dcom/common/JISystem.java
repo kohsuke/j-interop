@@ -20,13 +20,17 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.URL;
 import java.net.URLConnection;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Locale;
+import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.Properties;
 import java.util.ResourceBundle;
@@ -36,10 +40,17 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
-/**<p>General purpose utility class. Fields set here are applied system wide.  The j-Interop library exposes JRE based logger "org.jinterop". Applications need to 
- * attach their own handler to this logger. If you would like to set the in-built handler, which writes to a file <i>j-Interop.log</i> in the <code>java.io.tmpdir</code>
- * directory, please use the <code>JISystem.setInBuiltLogHandler(boolean)</code>. Please note that the <code>level</code> for the logger and all other
- * configuration parameters should be set directly on the logger instance, using LogManager.getLogger("org.jinterop")</p>
+/**<p>Class implemented for defining system wide changes. 
+ * 
+ * <p>A note on logging: The framework exposes JRE based logger "org.jinterop". Applications need to 
+ * attach their own handler to this logger. If you would like to set the in-built handler, which 
+ * writes to a file <code>j-Interop.log</code> in the <code>java.io.tmpdir</code> directory, please use 
+ * the {@link #setInBuiltLogHandler(boolean)}. Please note that the <code>level</code> for the logger 
+ * and all other configuration parameters should be set directly on the logger instance, 
+ * using <code>LogManager.getLogger("org.jinterop")</code></p>
+ * 
+ * <p><b>Note</b>: Methods starting with <i>internal_</i> keyword are internal to the framework 
+ * and must not be called by the developer.
  * 
  * @since 1.0
  *
@@ -58,8 +69,9 @@ public final class JISystem {
 	private static boolean autoRegister = false;
 	private static boolean autoCollection = true;
 	private static final Logger logger = Logger.getLogger("org.jinterop");
-
-	/** Returns the j-Interop logger identified by the name "org.jinterop".
+	private static final Map mapOfHostnamesVsIPs = new HashMap();
+	
+	/** Returns the framework logger identified by the name "org.jinterop".
 	 * 
 	 * @return
 	 */
@@ -68,10 +80,10 @@ public final class JISystem {
 		return logger;
 	}
 	
-	/** Sets the COM version which the library would use for communicating with COM servers.
-	 * <br> Default is 5.2. 
+	/** Sets the COM version which the library would use for communicating with COM servers. 
+	 * Default is 5.2. 
 	 * 
-	 * @param comVersion
+	 * @param comVersion new COM version
 	 */
 	public static void setCOMVersion(JIComVersion comVersion)
 	{
@@ -90,7 +102,7 @@ public final class JISystem {
 	
 	/** Sets the locale, this locale will be used to retrieve the resource bundle for Error Messages. 
 	 * 
-	 * @param locale default is Locale.getDefault().
+	 * @param locale default is <code>Locale.getDefault()</code>.
 	 */
 	public static void setLocale(Locale locale)
 	{
@@ -158,9 +170,10 @@ public final class JISystem {
 		return message;
 	}
 	
-	/** Queries the property file maintaining the progId Vs Clsid DB and returns the JIClsid or null
+	/** Queries the property file maintaining the <code>PROGID</code> Vs <code>CLSID</code> mappings 
+	 * and returns the <code>CLSID</code> if found or null otherwise.
 	 * 
-	 * @param progId
+	 * @param progId user friendly string such as "Excel.Application".
 	 * @return
 	 */
 	public static String getClsidFromProgId(String progId)
@@ -186,7 +199,12 @@ public final class JISystem {
 	
 	private static void saveDBPathAndLoadFile()
 	{
-		ClassLoader loader = JISystem.class.getClassLoader();
+		ClassLoader loader = Thread.currentThread().getContextClassLoader();
+		if (loader == null) 
+		{
+			loader = JISystem.class.getClassLoader(); // fallback
+		}
+		
 		Set locations = new HashSet();
 		   if (loader != null) {
 	            try {
@@ -253,7 +271,7 @@ public final class JISystem {
 	 * 
 	 * @exclude
 	 */
-	public static void writeProgIdsToFile()
+	public static void internal_writeProgIdsToFile()
 	{
 		if (pathToDB != null)
 		{
@@ -277,7 +295,7 @@ public final class JISystem {
 	/**Stores it in a temporary hash map here, and this is later persisted when the library is shutdown
 	 * @exclude
 	 */
-	public static void setClsidtoProgId(String progId, String clsid)
+	public static void internal_setClsidtoProgId(String progId, String clsid)
 	{
 		mapOfProgIdsVsClsids.put(progId,clsid);
 	}
@@ -286,7 +304,7 @@ public final class JISystem {
 	 * @exclude
 	 * @return
 	 */
-	public static Object getSocket()
+	public static Object internal_getSocket()
 	{
 		//synchronized (socketQueue) 
 		{
@@ -297,7 +315,7 @@ public final class JISystem {
 	/**synchronisation will be performed by the oxid master
 	 * @exclude
 	 */
-	public static void setSocket(Object socket)
+	public static void internal_setSocket(Object socket)
 	{
 		//synchronized (socketQueue) 
 		{
@@ -333,11 +351,13 @@ public final class JISystem {
 		}
 	}
 	
-	/** Pass true if, this is an OCX\DLL component and you want the library to do auto registration. This API supercedes the instance specific
-	 * flags set on JIClsid or JIProgID. 
-	 * 
-	 * 
-	 * @param autoRegisteration
+	/**Indicates to the framework, if Windows Registry settings for DLL\OCX
+	 * component identified by this object should be modified to add a <code>Surrogate</code> 
+	 * automatically. A <code>Surrogate</code> is a process which provides resources
+	 * such as memory and cpu for a DLL\OCX to execute.
+	 * <p> This API overrides the instance specific flags set on JIClsid or JIProgID. 
+	 *  
+	 * @param autoRegisteration <code>true</code> if auto registration should be done by the framework.
 	 */
 	public static void setAutoRegisteration(boolean autoRegisteration)
 	{
@@ -353,21 +373,24 @@ public final class JISystem {
 		return autoRegister;
 	}
 	
-	/**<p>Sometimes the DCOM runtime of Windows will not send a ping on time to the j-Interop runtime. It is not very abnormal, since Windows can
-	 * sometimes resort to mechanisms other than DCOM to keep a reference count for the instances they imported. In case of j-Interop, if a ping is not 
-	 * recieved in 8 minutes , the Java CoClass is collected for GC. And when the COM server asks for it, it is sent back an Exception. Please use this
-	 * flag to set the Auto Collection status to ON or OFF. By Default, it is ON. </p>  
+	/**<p>Sometimes the DCOM runtime of Windows will not send a ping on time to the Framework. 
+	 * It is not very abnormal, since Windows can sometimes resort to mechanisms other than
+	 * DCOM to keep a reference count for the instances they imported. In case of j-Interop
+	 * framework, if a ping is not received in 8 minutes , the Java Local Class is collected for 
+	 * GC. And if the COM server requires a reference to it or acts on a previously obtained reference
+	 * , it is sent back an <i>Exception</i>. Please use this flag to set the Auto Collection status 
+	 * to ON or OFF. By Default, it is ON. </p>  
 	 * 
-	 * @param autoCollection
+	 * @param autoCollection <code>false</code> if auto collection should be turned off.
 	 */
 	public static void setJavaCoClassAutoCollection(boolean autoCollection)
 	{
 		JISystem.autoCollection = autoCollection;
 	}
 	
-	/** Status of autoCollection flag. True if autoCollection is enabled, false otherwise.  
+	/** Status of autoCollection flag.   
 	 * 
-	 * @return
+	 * @return <code>true</code> if autoCollection is enabled, <code>false</code> otherwise.
 	 */
 	public static boolean isJavaCoClassAutoCollectionSet()
 	{
@@ -388,4 +411,49 @@ public final class JISystem {
 		logger.addHandler(fileHandler);
 	}
 	
+	/** Adds a mapping between the <code>hostname</code> and its <code>IP</code>. This method should be used when there is a possibility
+	 * of multiple adapters (for example from a Virtual Machine) on the COM server. j-Interop Framework only uses
+	 * the host name and ignores the I.P addresses supplied in the interface reference of a COM object. If this hostname
+	 * is not reachable from the machine where library is currently running (such as a Linux machine with no name mappings)
+	 * then the call to this COM server would fail with an <code>UnknownHostException</code>. To avoid that either add the
+	 * binding in the host machine or add the binding here. 
+	 * <p>
+	 * This method stores the name vs I.P binding in a <code>Map</code>. Providing the same <code>hostname</code> will overwrite 
+	 * the binding specified before.
+	 * 
+	 * @param hostname name of target machine.
+	 * @param IP address of target machine in I.P format.
+	 * @throws UnknownHostException if the <code>IP</code> is invalid or cannot be reached.
+	 * @throws IllegalArgumentException if any parameter is <code>null</code> or of 0 length.
+	 */
+	public static synchronized void mapHostNametoIP(String hostname, String IP) throws UnknownHostException 
+	{
+		if (hostname == null || IP == null || hostname.trim().length() == 0 || IP.trim().length() == 0)
+		{
+			throw new IllegalArgumentException();
+		}
+		
+		//just check the validity of IP
+		InetAddress.getByName(IP.trim());
+		
+		mapOfHostnamesVsIPs.put(hostname.trim().toUpperCase(), IP.trim());
+	}
+	
+	/** Returns I.P address for the given <code>hostname</code>.
+	 * 
+	 * @param hostname
+	 * @return <code>null</code> if a mapping could not be found.
+	 */
+	public static synchronized String getIPForHostName(String hostname)
+	{
+		return (String)mapOfHostnamesVsIPs.get(hostname.trim().toUpperCase());
+	}
+	
+	public static synchronized void internal_dumpMap()
+	{
+		if (JISystem.getLogger().isLoggable(Level.INFO))
+		{
+			getLogger().info("mapOfHostnamesVsIPs: " + mapOfHostnamesVsIPs);
+		}
+	}
 }

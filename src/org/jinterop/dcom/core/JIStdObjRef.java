@@ -39,7 +39,8 @@ final class JIStdObjRef implements Serializable {
 	private byte[] oxid = null;
 	private byte[] oid = null;
 	private String ipidOfthisObjectRef = null;
-	
+//	private String oidString = null;
+   	
 	
 	/** Resolver address are taken of localhost
 	 * 
@@ -49,6 +50,7 @@ final class JIStdObjRef implements Serializable {
 		this.ipidOfthisObjectRef = ipid;
 		this.oxid = oxid.getOXID();
 		this.oid = oid.getOID();
+//		this.oidString = oid.toString();
 		this.publicRefs = 5;
 	}
 	
@@ -61,10 +63,14 @@ final class JIStdObjRef implements Serializable {
 		objRef.flags = ndr.readUnsignedLong();
 		objRef.publicRefs = ndr.readUnsignedLong();
 		
-		objRef.oxid = JIUtil.readOctetArrayLE(ndr,8);
+		objRef.oxid = JIMarshalUnMarshalHelper.readOctetArrayLE(ndr,8);
 		
-		objRef.oid = JIUtil.readOctetArrayLE(ndr,8);
+		objRef.oid = JIMarshalUnMarshalHelper.readOctetArrayLE(ndr,8);
 		
+//		ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+//	   	jcifs.util.Hexdump.hexdump(new PrintStream(byteArrayOutputStream), objRef.oid, 0, objRef.oid.length);
+//	   	objRef.oidString = byteArrayOutputStream.toString();
+	   		
 		try {
 			rpc.core.UUID ipid2 = new rpc.core.UUID();
 			ipid2.decode(ndr,ndr.getBuffer());
@@ -107,8 +113,8 @@ final class JIStdObjRef implements Serializable {
 	{
 		ndr.writeUnsignedLong(flags);
 		ndr.writeUnsignedLong(publicRefs);
-		JIUtil.writeOctetArrayLE(ndr,oxid);
-		JIUtil.writeOctetArrayLE(ndr,oid);
+		JIMarshalUnMarshalHelper.writeOctetArrayLE(ndr,oxid);
+		JIMarshalUnMarshalHelper.writeOctetArrayLE(ndr,oid);
 		
 		try {
 			rpc.core.UUID ipid = new rpc.core.UUID(ipidOfthisObjectRef);
@@ -121,7 +127,7 @@ final class JIStdObjRef implements Serializable {
 	
 	public String toString()
 	{
-		String retVal = "IPID: " + ipidOfthisObjectRef;
+		String retVal = "IPID: " + ipidOfthisObjectRef ;//+ " , OID: " + oidString;
 		return retVal;
 	}
 }

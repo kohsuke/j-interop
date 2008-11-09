@@ -7,8 +7,8 @@ import org.jinterop.dcom.core.IJIComObject;
 import org.jinterop.dcom.core.JIComServer;
 import org.jinterop.dcom.core.JIProgId;
 import org.jinterop.dcom.core.JISession;
-import org.jinterop.dcom.win32.IJIDispatch;
-import org.jinterop.dcom.win32.JIComFactory;
+import org.jinterop.dcom.impls.JIObjectFactory;
+import org.jinterop.dcom.impls.automation.IJIDispatch;
 
 public class Test10KServer {
 
@@ -32,9 +32,9 @@ public class Test10KServer {
 				{
 
 					JISession session = JISession.createSession(args[1],args[2],args[3]);
-					JIComServer comServer = new JIComServer(JIProgId.valueOf(session,"MSMQ.MSMQQueueInfo"),args[0],session);
+					JIComServer comServer = new JIComServer(JIProgId.valueOf("MSMQ.MSMQQueueInfo"),args[0],session);
 					IJIComObject unknown = comServer.createInstance();
-					IJIDispatch dispatch = (IJIDispatch)JIComFactory.createCOMInstance(JIComFactory.IID_IDispatch,unknown);
+					IJIDispatch dispatch = (IJIDispatch)JIObjectFactory.narrowObject(unknown.queryInterface(IJIDispatch.IID));
 					//JISession.destroySession(session);
 					Thread.sleep(150);
 					if(i%100 == 0)

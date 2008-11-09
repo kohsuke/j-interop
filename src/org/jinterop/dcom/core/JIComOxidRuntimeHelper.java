@@ -20,6 +20,7 @@ package org.jinterop.dcom.core;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.ServerSocketChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -40,7 +41,6 @@ import ndr.NetworkDataRepresentation;
 import org.jinterop.dcom.common.IJICOMRuntimeWorker;
 import org.jinterop.dcom.common.JIErrorCodes;
 import org.jinterop.dcom.common.JIException;
-import org.jinterop.dcom.common.JIJavaCoClass;
 import org.jinterop.dcom.common.JIRuntimeException;
 import org.jinterop.dcom.common.JISystem;
 import org.jinterop.dcom.transport.JIComRuntimeEndpoint;
@@ -86,11 +86,12 @@ final class JIComOxidRuntimeHelper extends Stub {
 						JISystem.getLogger().info("started startOxid thread: " + Thread.currentThread().getName());
 					}
 					attach();
-					((JIComRuntimeEndpoint)getEndpoint()).processRequests(new OxidResolverImpl(getProperties()),null);
+					((JIComRuntimeEndpoint)getEndpoint()).processRequests(new OxidResolverImpl(getProperties()),null,new ArrayList());
 				}catch(Exception e)
 				{
 					if (JISystem.getLogger().isLoggable(Level.WARNING))
 					{
+						JISystem.getLogger().throwing("Oxid Resolver Thread", "run", e);
 						JISystem.getLogger().warning("Oxid Resolver Thread: " +  e.getMessage() + " , on thread Id: " + Thread.currentThread().getName());
 					}
 				}
@@ -110,70 +111,104 @@ final class JIComOxidRuntimeHelper extends Stub {
 	}
 	
 	//returns the port to which the server is listening.
-	Object[] startRemUnknown(final String baseIID, final String ipidOfRemUnknown, final String ipidOfComponent) throws IOException
+	Object[] startRemUnknown(final String baseIID, final String ipidOfRemUnknown, final String ipidOfComponent, final List listOfSupportedInterfaces) throws IOException
 	{
 	    final ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
 	    final ServerSocket serverSocket = serverSocketChannel.socket();//new ServerSocket(0);
-	    serverSocket.setSoTimeout(120*1000); //2 min timeout.
+//	    serverSocket.setSoTimeout(120*1000); //2 min timeout.
 	    serverSocket.bind(null);
         int remUnknownPort = serverSocket.getLocalPort();
-		Thread remUnknownThread = new Thread(new Runnable() {
+        //have to pick up a random name so adding the ipid of remunknown this is a uuid so the string is quite random.
+        final ThreadGroup remUnknownForThisListener = new ThreadGroup("ThreadGroup - " + baseIID + "[" + ipidOfRemUnknown + "]");
+        remUnknownForThisListener.setDaemon(true);
+		Thread remUnknownThread = new Thread(remUnknownForThisListener,new Runnable() {
 			public void run() {
-				try{
-					if (JISystem.getLogger().isLoggable(Level.INFO))
-					{
-						JISystem.getLogger().info("started startRemUnknown thread: " + Thread.currentThread().getName());
-					}
-					Socket socket = serverSocket.accept();
-					if (JISystem.getLogger().isLoggable(Level.INFO))
-					{
-						JISystem.getLogger().info("RemUnknown Thread: Got Connection from " + socket.getPort());
-					}
-					synchronized (JIComOxidRuntime.mutex) {
-			    		JISystem.setSocket(socket);
-				    	//now create the JIComOxidRuntimeHelper Object and start it.
-			    		attach();
-			    		//getEndpoint().getSyntax().getUuid().toString();
-					}
-					((JIComRuntimeEndpoint)getEndpoint()).processRequests(new RemUnknownObject(ipidOfRemUnknown,ipidOfComponent),baseIID);
-				}catch(SmbAuthException e)
+				if (JISystem.getLogger().isLoggable(Level.INFO))
 				{
-					JISystem.getLogger().throwing("JIComOxidRuntimeHelper","startRemUnknown",e);
-					throw new JIRuntimeException(JIErrorCodes.JI_CALLBACK_AUTH_FAILURE);
+					JISystem.getLogger().info("started RemUnknown listener thread for : " + Thread.currentThread().getName());
 				}
-				catch(SmbException e)
+				try{
+					
+					while(true)
+					{
+						final Socket socket = serverSocket.accept();
+						if (JISystem.getLogger().isLoggable(Level.INFO))
+						{
+							JISystem.getLogger().info("RemUnknown listener: Got Connection from " + socket.getPort());
+						}
+						
+						//now create the JIComOxidRuntimeHelper Object and start it. We need a new one since the old one is already attached to the listener.
+						final JIComOxidRuntimeHelper remUnknownHelper = new JIComOxidRuntimeHelper(getProperties());
+						synchronized (JIComOxidRuntime.mutex) {
+				    		JISystem.internal_setSocket(socket);
+					    	remUnknownHelper.attach();
+				    	}
+						
+						//now start a new thread with this socket 
+						Thread remUnknown = new Thread(remUnknownForThisListener,new Runnable() {
+							public void run() {
+								try {
+									((JIComRuntimeEndpoint)remUnknownHelper.getEndpoint()).processRequests(new RemUnknownObject(ipidOfRemUnknown,ipidOfComponent),baseIID,listOfSupportedInterfaces);
+								} catch(SmbAuthException e)
+								{
+									JISystem.getLogger().log(Level.WARNING,"JIComOxidRuntimeHelper RemUnknownThread (not listener)",e);
+									throw new JIRuntimeException(JIErrorCodes.JI_CALLBACK_AUTH_FAILURE);
+								}
+								catch(SmbException e)
+								{
+									//System.out.println(e.getMessage());
+									JISystem.getLogger().log(Level.WARNING,"JIComOxidRuntimeHelper RemUnknownThread (not listener)",e);
+									throw new JIRuntimeException(JIErrorCodes.JI_CALLBACK_SMB_FAILURE);
+								}catch(ClosedByInterruptException e)
+								{
+									JISystem.getLogger().info("JIComOxidRuntimeHelper RemUnknownThread (not listener)" + Thread.currentThread().getName() 
+											+ " is purposefully closed by interruption.");
+								}
+								catch (IOException e) {
+									JISystem.getLogger().log(Level.WARNING,"JIComOxidRuntimeHelper RemUnknownThread (not listener)",e);
+								}finally{
+									try {
+										remUnknownHelper.detach();
+									} catch (IOException e){}
+								}		
+								
+							}
+						},"jI_RemUnknown[" + baseIID + " , L(" + socket.getLocalPort() + "):R(" + socket.getPort() + ")]");
+						remUnknown.setDaemon(true);
+						remUnknown.start();
+					}
+				}catch(ClosedByInterruptException e)
 				{
-					//System.out.println(e.getMessage());
-					JISystem.getLogger().throwing("JIComOxidRuntimeHelper","startRemUnknown",e);
-					throw new JIRuntimeException(JIErrorCodes.JI_CALLBACK_SMB_FAILURE);
-				}		
+					JISystem.getLogger().info("JIComOxidRuntimeHelper RemUnknownListener" + Thread.currentThread().getName() 
+							+ " is purposefully closed by interruption.");
+				}	
 				catch(IOException e)
 				{ 
 					if(JISystem.getLogger().isLoggable(Level.WARNING))
 					{
-						JISystem.getLogger().warning("RemUnknown Thread: " +  e.getMessage() + " , on thread Id: " + (Thread.currentThread().getName()));
+						JISystem.getLogger().log(Level.WARNING,"JIComOxidRuntimeHelper RemUnknownListener",e);
+						JISystem.getLogger().warning("RemUnknownListener Thread: " +  e.getMessage() + " , on thread Id: " + (Thread.currentThread().getName()));
 					}
 					//e.printStackTrace();
 				}catch(Throwable e)
 				{
-					JISystem.getLogger().throwing("JIComOxidRuntimeHelper","startRemUnknown",e);
+					if(JISystem.getLogger().isLoggable(Level.WARNING))
+					{
+						JISystem.getLogger().log(Level.WARNING,"JIComOxidRuntimeHelper RemUnknownListener",e);
+					}
 				}
-				finally{
-					try {
-						((JIComRuntimeEndpoint)getEndpoint()).detach();
-					} catch (IOException e){}
-				}
+				
 				
 				if (JISystem.getLogger().isLoggable(Level.INFO))
 				{
-					JISystem.getLogger().info("terminating startRemUnknown thread: " + Thread.currentThread().getName());
+					JISystem.getLogger().info("terminating RemUnknownListener thread: " + Thread.currentThread().getName());
 				}
 			}
-		},"jI_RemUnknown[" + baseIID + " , " + remUnknownPort + "]");
+		},"jI_RemUnknownListener[" + baseIID + " , " + remUnknownPort + "]");
 		
 		remUnknownThread.setDaemon(true);
 		remUnknownThread.start();
-		return new Object[]{new Integer(remUnknownPort),remUnknownThread};
+		return new Object[]{new Integer(remUnknownPort),remUnknownForThisListener};
 	}
 }
 
@@ -256,7 +291,7 @@ class OxidResolverImpl extends NdrObject implements IJICOMRuntimeWorker
 		{
 			JISystem.getLogger().info("Oxid Object: SimplePing");
 		}
-		byte b[] = JIUtil.readOctetArrayLE(ndr,8);//setid
+		byte b[] = JIMarshalUnMarshalHelper.readOctetArrayLE(ndr,8);//setid
 		JIComOxidRuntime.addUpdateSets(new JISetId(b),new ArrayList(),new ArrayList());
 		buffer = new NdrBuffer(new byte[16],0);
 		buffer.enc_ndr_long(0);
@@ -272,24 +307,24 @@ class OxidResolverImpl extends NdrObject implements IJICOMRuntimeWorker
 		{
 			JISystem.getLogger().info("Oxid Object: ComplexPing");
 		}
-		byte b[] = JIUtil.readOctetArrayLE(ndr,8);//setid
-		JIUtil.deSerialize(ndr,Short.class,null,JIFlags.FLAG_NULL,null);//seqId.
-		Short lengthAdds = (Short)JIUtil.deSerialize(ndr,Short.class,null,JIFlags.FLAG_NULL,null);//
-		Short lengthDels = (Short)JIUtil.deSerialize(ndr,Short.class,null,JIFlags.FLAG_NULL,null);//
-		JIUtil.deSerialize(ndr,Integer.class,null,JIFlags.FLAG_NULL,null);//
+		byte b[] = JIMarshalUnMarshalHelper.readOctetArrayLE(ndr,8);//setid
+		JIMarshalUnMarshalHelper.deSerialize(ndr,Short.class,null,JIFlags.FLAG_NULL,null);//seqId.
+		Short lengthAdds = (Short)JIMarshalUnMarshalHelper.deSerialize(ndr,Short.class,null,JIFlags.FLAG_NULL,null);//
+		Short lengthDels = (Short)JIMarshalUnMarshalHelper.deSerialize(ndr,Short.class,null,JIFlags.FLAG_NULL,null);//
+		JIMarshalUnMarshalHelper.deSerialize(ndr,Integer.class,null,JIFlags.FLAG_NULL,null);//
 		
-		JIUtil.deSerialize(ndr,Integer.class,null,JIFlags.FLAG_NULL,null);//length
+		JIMarshalUnMarshalHelper.deSerialize(ndr,Integer.class,null,JIFlags.FLAG_NULL,null);//length
 		ArrayList listOfAdds = new ArrayList();
 		for (int i = 0; i < lengthAdds.intValue(); i++ )
 		{
-			listOfAdds.add(new JIObjectId(JIUtil.readOctetArrayLE(ndr,8)));
+			listOfAdds.add(new JIObjectId(JIMarshalUnMarshalHelper.readOctetArrayLE(ndr,8)));
 		}
 		
-		JIUtil.deSerialize(ndr,Integer.class,null,JIFlags.FLAG_NULL,null);//length
+		JIMarshalUnMarshalHelper.deSerialize(ndr,Integer.class,null,JIFlags.FLAG_NULL,null);//length
 		ArrayList listOfDels = new ArrayList();
 		for (int i = 0; i < lengthDels.intValue(); i++ )
 		{
-			listOfDels.add(new JIObjectId(JIUtil.readOctetArrayLE(ndr,8)));
+			listOfDels.add(new JIObjectId(JIMarshalUnMarshalHelper.readOctetArrayLE(ndr,8)));
 		}
 		
 		if (Arrays.equals(b,new byte[]{0,0,0,0,0,0,0,0}))
@@ -303,9 +338,9 @@ class OxidResolverImpl extends NdrObject implements IJICOMRuntimeWorker
 		NetworkDataRepresentation ndr2 = new NetworkDataRepresentation();
 		ndr2.setBuffer(buffer);
 		
-		JIUtil.writeOctetArrayLE(ndr2,b);
-		JIUtil.serialize(ndr2,Short.class,new Short((short)0),null,JIFlags.FLAG_NULL);
-		JIUtil.serialize(ndr2,Integer.class,new Integer(0),null,JIFlags.FLAG_NULL);//hresult
+		JIMarshalUnMarshalHelper.writeOctetArrayLE(ndr2,b);
+		JIMarshalUnMarshalHelper.serialize(ndr2,Short.class,new Short((short)0),null,JIFlags.FLAG_NULL);
+		JIMarshalUnMarshalHelper.serialize(ndr2,Integer.class,new Integer(0),null,JIFlags.FLAG_NULL);//hresult
 		return buffer;
 	}
 	
@@ -355,14 +390,14 @@ class OxidResolverImpl extends NdrObject implements IJICOMRuntimeWorker
 		ndr2.setBuffer(ndrBuffer);
 		
 		//serialize COMVERSION
-		JIUtil.serialize(ndr2,Short.class, new Short((short)JISystem.getCOMVersion().getMajorVersion()),null,JIFlags.FLAG_NULL);
-		JIUtil.serialize(ndr2,Short.class, new Short((short)JISystem.getCOMVersion().getMinorVersion()),null,JIFlags.FLAG_NULL);
+		JIMarshalUnMarshalHelper.serialize(ndr2,Short.class, new Short((short)JISystem.getCOMVersion().getMajorVersion()),null,JIFlags.FLAG_NULL);
+		JIMarshalUnMarshalHelper.serialize(ndr2,Short.class, new Short((short)JISystem.getCOMVersion().getMinorVersion()),null,JIFlags.FLAG_NULL);
 		
-		JIUtil.serialize(ndr2,Integer.class, new Integer(0),null,JIFlags.FLAG_NULL);
-		JIUtil.serialize(ndr2,Integer.class, new Integer(dualStringArray.getLength()),null,JIFlags.FLAG_NULL);
+		JIMarshalUnMarshalHelper.serialize(ndr2,Integer.class, new Integer(0),null,JIFlags.FLAG_NULL);
+		JIMarshalUnMarshalHelper.serialize(ndr2,Integer.class, new Integer(dualStringArray.getLength()),null,JIFlags.FLAG_NULL);
 		dualStringArray.encode(ndr2);
-		JIUtil.serialize(ndr2,Integer.class, new Integer(0),null,JIFlags.FLAG_NULL);
-		JIUtil.serialize(ndr2,Integer.class, new Integer(0),null,JIFlags.FLAG_NULL);
+		JIMarshalUnMarshalHelper.serialize(ndr2,Integer.class, new Integer(0),null,JIFlags.FLAG_NULL);
+		JIMarshalUnMarshalHelper.serialize(ndr2,Integer.class, new Integer(0),null,JIFlags.FLAG_NULL);
 		return ndrBuffer;
 	}
 	//will prepare a NdrBuffer for reply to this call 
@@ -374,13 +409,13 @@ class OxidResolverImpl extends NdrObject implements IJICOMRuntimeWorker
 		}
 		//System.err.println("VIKRAM: resolve oxid thread Id = " + Thread.currentThread().getId());
 		//first read the OXID, then consult the oxid master about it's details.
-		JIOxid oxid = new JIOxid(JIUtil.readOctetArrayLE(ndr,8));
+		JIOxid oxid = new JIOxid(JIMarshalUnMarshalHelper.readOctetArrayLE(ndr,8));
 		
 		//now get the RequestedProtoSeq length.
-		int length = ((Short)JIUtil.deSerialize(ndr,Short.class,null,JIFlags.FLAG_NULL,null)).intValue(); 
+		int length = ((Short)JIMarshalUnMarshalHelper.deSerialize(ndr,Short.class,null,JIFlags.FLAG_NULL,null)).intValue(); 
 		
 		//now for the array.
-		JIArray array = (JIArray)JIUtil.deSerialize(ndr,new JIArray(Short.class,null,1,true),null,JIFlags.FLAG_REPRESENTATION_ARRAY,null);
+		JIArray array = (JIArray)JIMarshalUnMarshalHelper.deSerialize(ndr,new JIArray(Short.class,null,1,true),null,JIFlags.FLAG_REPRESENTATION_ARRAY,null);
 		
 		//now query the Resolver master for this data.
 		JIComOxidDetails details = JIComOxidRuntime.getOxidDetails(oxid);
@@ -412,7 +447,7 @@ class OxidResolverImpl extends NdrObject implements IJICOMRuntimeWorker
 //		
 		
 		//randomly create IPID and send, this is the ipid of the remunknown, we store it with remunknown object
-        UUID uuid = new UUID(GUIDUtil.guidStringFromHexString(IdentifierFactory.createUniqueIdentifier().toHexString()));
+        UUID uuid = details.getRemUnknownIpid() == null ? new UUID(GUIDUtil.guidStringFromHexString(IdentifierFactory.createUniqueIdentifier().toHexString())) : new UUID(details.getRemUnknownIpid());
         
 		//create the bindings for this Java Object.
 		//this port will go in the new bindings sent to the COM client.
@@ -422,9 +457,11 @@ class OxidResolverImpl extends NdrObject implements IJICOMRuntimeWorker
 			port = details.getPortForRemUnknown();
 			if (port == -1)
 			{
-			    Object[] portandthread = details.getCOMRuntimeHelper().startRemUnknown(details.getIID(),uuid.toString(),details.getIpid());
+				String remunknownipid = uuid.toString();
+			    Object[] portandthread = details.getCOMRuntimeHelper().startRemUnknown(details.getIID(),remunknownipid,details.getIpid(), details.getReferent().getSupportedInterfaces());
 			    port = ((Integer)portandthread[0]).intValue();
-			    details.setRemUnknownThread((Thread)portandthread[1]);
+			    details.setRemUnknownThreadGroup((ThreadGroup)portandthread[1]);
+			    details.setRemUnknownIpid(remunknownipid);
 			}
 			details.setPortForRemUnknown(port);
 		} catch (IOException e) {
@@ -449,15 +486,15 @@ class OxidResolverImpl extends NdrObject implements IJICOMRuntimeWorker
 		NetworkDataRepresentation ndr2 = new NetworkDataRepresentation();
 		ndr2.setBuffer(ndrBuffer);
 
-		JIUtil.serialize(ndr2,Integer.class, new Integer(new Object().hashCode()),null,JIFlags.FLAG_NULL);
-		JIUtil.serialize(ndr2,Integer.class, new Integer((dualStringArray.getLength() - 4)/2),null,JIFlags.FLAG_NULL);
+		JIMarshalUnMarshalHelper.serialize(ndr2,Integer.class, new Integer(new Object().hashCode()),null,JIFlags.FLAG_NULL);
+		JIMarshalUnMarshalHelper.serialize(ndr2,Integer.class, new Integer((dualStringArray.getLength() - 4)/2),null,JIFlags.FLAG_NULL);
 		dualStringArray.encode(ndr2);
 		
-		JIUtil.serialize(ndr2,UUID.class, uuid,null,JIFlags.FLAG_NULL);
-		JIUtil.serialize(ndr2,Integer.class, authnHint,null,JIFlags.FLAG_NULL);
-		JIUtil.serialize(ndr2,Short.class, new Short((short)JISystem.getCOMVersion().getMajorVersion()),null,JIFlags.FLAG_NULL);
-		JIUtil.serialize(ndr2,Short.class, new Short((short)JISystem.getCOMVersion().getMinorVersion()),null,JIFlags.FLAG_NULL);
-		JIUtil.serialize(ndr2,Integer.class, new Integer(0),null,JIFlags.FLAG_NULL); //hresult
+		JIMarshalUnMarshalHelper.serialize(ndr2,UUID.class, uuid,null,JIFlags.FLAG_NULL);
+		JIMarshalUnMarshalHelper.serialize(ndr2,Integer.class, authnHint,null,JIFlags.FLAG_NULL);
+		JIMarshalUnMarshalHelper.serialize(ndr2,Short.class, new Short((short)JISystem.getCOMVersion().getMajorVersion()),null,JIFlags.FLAG_NULL);
+		JIMarshalUnMarshalHelper.serialize(ndr2,Short.class, new Short((short)JISystem.getCOMVersion().getMinorVersion()),null,JIFlags.FLAG_NULL);
+		JIMarshalUnMarshalHelper.serialize(ndr2,Integer.class, new Integer(0),null,JIFlags.FLAG_NULL); //hresult
 		
 		
 		return ndrBuffer;
@@ -497,9 +534,9 @@ class RemUnknownObject extends NdrObject implements IJICOMRuntimeWorker
 	private int opnum = -1;
 	private NdrBuffer buffer = null;
 	
-	//component tells you the JIJavaCoClass to act on , sent via the AlterContext calls
+	//component tells you the JILocalCoClass to act on , sent via the AlterContext calls
 	//for all Altercontexts with IRemUnknown , this will be null.
-	private JIJavaCoClass component = null; //will hold the current instance to act on.
+	private JILocalCoClass component = null; //will hold the current instance to act on.
 	/* the component and object id duo work together. 1 component could export many ipids.
 	 * 
 	 */
@@ -591,7 +628,7 @@ class RemUnknownObject extends NdrObject implements IJICOMRuntimeWorker
 						int length = ndr.readUnsignedShort();
 					
 						int[] retvals = new int[length];
-						JIArray array = (JIArray)JIUtil.deSerialize(ndr, remInterfaceRefArray, new ArrayList(), JIFlags.FLAG_REPRESENTATION_ARRAY, new HashMap());
+						JIArray array = (JIArray)JIMarshalUnMarshalHelper.deSerialize(ndr, remInterfaceRefArray, new ArrayList(), JIFlags.FLAG_REPRESENTATION_ARRAY, new HashMap());
 						//saving the ipids with there references. considering public + private references together for now.
 						JIStruct[] structs = (JIStruct[])array.getArrayInstance();
 						for (int i = 0;i<length;i++)
@@ -632,7 +669,7 @@ class RemUnknownObject extends NdrObject implements IJICOMRuntimeWorker
 				    
 				    JIOrpcThis.decode(ndr);
                     length = ndr.readUnsignedShort();
-                    array = (JIArray)JIUtil.deSerialize(ndr, remInterfaceRefArray, new ArrayList(), JIFlags.FLAG_REPRESENTATION_ARRAY, new HashMap());
+                    array = (JIArray)JIMarshalUnMarshalHelper.deSerialize(ndr, remInterfaceRefArray, new ArrayList(), JIFlags.FLAG_REPRESENTATION_ARRAY, new HashMap());
                     //saving the ipids with there references. considering public + private references together for now.
                     structs = (JIStruct[])array.getArrayInstance();
                     for (int i = 0;i<length;i++)
@@ -681,7 +718,7 @@ class RemUnknownObject extends NdrObject implements IJICOMRuntimeWorker
 			//alter context or bind, again made some calls before.
 			if (component == null)
 			{
-			    int i = 0;
+				JISystem.getLogger().severe("JIComOxidRuntimeHelper RemUnknownObject read(): component is null , opnum is " + opnum + " , IPID is " + ipid + " , selfIpid is " + selfIPID);
 			}
 			byte b[] = null;
 			Object result = null;
@@ -766,7 +803,8 @@ class RemUnknownObject extends NdrObject implements IJICOMRuntimeWorker
 			
 			//JIOrpcThat.encode(ndr2);
 			//have to create a call Object, since these return types could be structs , unions etc. having deffered pointers 
-			JICallObject callObject = new JICallObject(null); 
+			JICallBuilder callObject = new JICallBuilder();
+			callObject.attachSession(component.getSession());
 			if (result != null)
 			{
 				
@@ -792,7 +830,7 @@ class RemUnknownObject extends NdrObject implements IJICOMRuntimeWorker
 				
 			}
 			callObject.write2(ndr2);
-			JIUtil.serialize(ndr2,Integer.class,new Integer(hresult),null,JIFlags.FLAG_NULL);
+			JIMarshalUnMarshalHelper.serialize(ndr2,Integer.class,new Integer(hresult),null,JIFlags.FLAG_NULL);
 
 			
 			
@@ -827,7 +865,7 @@ class RemUnknownObject extends NdrObject implements IJICOMRuntimeWorker
         {
 			JISystem.getLogger().finest("RemUnknownObject: [QI] IPID is " + ipid);
         }
-		//set the JIJavaCoClass., the ipid should not be null in this call.
+		//set the JILocalCoClass., the ipid should not be null in this call.
 		JIComOxidDetails details = JIComOxidRuntime.getComponentFromIPID(ipid.toString());
 		
 		if (details == null)
@@ -836,18 +874,18 @@ class RemUnknownObject extends NdrObject implements IJICOMRuntimeWorker
 			throw new JIRuntimeException(JIErrorCodes.RPC_E_INVALID_OXID);
 		}
 		
-		JIJavaCoClass component = details.getReferent();
+		JILocalCoClass component = details.getReferent();
 		
 		if (JISystem.getLogger().isLoggable(Level.FINEST))
         {
-			JISystem.getLogger().finest("RemUnknownObject: [QI] JIJavcCoClass is " + component.getComponentID());
+			JISystem.getLogger().finest("RemUnknownObject: [QI] JIJavcCoClass is " + component.getCoClassIID());
         }
 		
-		((Integer)(JIUtil.deSerialize(ndr,Integer.class,null, JIFlags.FLAG_NULL,null))).intValue();//refs , don't really care about this.
+		((Integer)(JIMarshalUnMarshalHelper.deSerialize(ndr,Integer.class,null, JIFlags.FLAG_NULL,null))).intValue();//refs , don't really care about this.
 		
-		int length = ((Short)(JIUtil.deSerialize(ndr,Short.class,null, JIFlags.FLAG_NULL,null))).intValue();//length of the requested Interfaces
+		int length = ((Short)(JIMarshalUnMarshalHelper.deSerialize(ndr,Short.class,null, JIFlags.FLAG_NULL,null))).intValue();//length of the requested Interfaces
 	
-		JIArray array = (JIArray)JIUtil.deSerialize(ndr,new JIArray(UUID.class,null,1,true),null,JIFlags.FLAG_REPRESENTATION_ARRAY,null);
+		JIArray array = (JIArray)JIMarshalUnMarshalHelper.deSerialize(ndr,new JIArray(UUID.class,null,1,true),null,JIFlags.FLAG_REPRESENTATION_ARRAY,null);
 	
 		//now to build the buffer and export the IIDs with new IPIDs
 		byte[] b = new byte[8 + 4 + 4 + length * (4 + 4 + 40) + 16];
@@ -860,9 +898,9 @@ class RemUnknownObject extends NdrObject implements IJICOMRuntimeWorker
 		JIOrpcThat.encode(ndr2);
 		
 		//pointer
-		JIUtil.serialize(ndr2,Integer.class,new Integer(new Object().hashCode()),null,JIFlags.FLAG_NULL);
+		JIMarshalUnMarshalHelper.serialize(ndr2,Integer.class,new Integer(new Object().hashCode()),null,JIFlags.FLAG_NULL);
 		//length of array
-		JIUtil.serialize(ndr2,Integer.class,new Integer(length),null,JIFlags.FLAG_NULL);
+		JIMarshalUnMarshalHelper.serialize(ndr2,Integer.class,new Integer(length),null,JIFlags.FLAG_NULL);
 		
 		Object[] arrayOfUUIDs = (Object[])array.getArrayInstance();
 		
@@ -909,8 +947,8 @@ class RemUnknownObject extends NdrObject implements IJICOMRuntimeWorker
 					}
 				}	
 				//hresult
-				JIUtil.serialize(ndr2,Integer.class,new Integer(hresult),null,JIFlags.FLAG_NULL);
-				JIUtil.serialize(ndr2,Integer.class,new Integer(0xCCCCCCCC),null,JIFlags.FLAG_NULL);
+				JIMarshalUnMarshalHelper.serialize(ndr2,Integer.class,new Integer(hresult),null,JIFlags.FLAG_NULL);
+				JIMarshalUnMarshalHelper.serialize(ndr2,Integer.class,new Integer(0xCCCCCCCC),null,JIFlags.FLAG_NULL);
 				
 				//now generate the IPID and export a java instance with this.
 				JIStdObjRef objRef = new JIStdObjRef(ipid2,details.getOxid(),details.getOid());

@@ -4,32 +4,31 @@ import java.util.Date;
 import java.util.ResourceBundle;
 
 import org.jinterop.dcom.common.JIException;
-import org.jinterop.dcom.common.JIInterfaceDefinition;
-import org.jinterop.dcom.common.JIJavaCoClass;
-import org.jinterop.dcom.common.JIMethodDescriptor;
 import org.jinterop.dcom.common.JISystem;
 import org.jinterop.dcom.core.IJIComObject;
 import org.jinterop.dcom.core.JIArray;
-import org.jinterop.dcom.core.JICallObject;
+import org.jinterop.dcom.core.JICallBuilder;
 import org.jinterop.dcom.core.JIComServer;
 import org.jinterop.dcom.core.JICurrency;
 import org.jinterop.dcom.core.JIFlags;
-import org.jinterop.dcom.core.JIInterfacePointer;
-import org.jinterop.dcom.core.JIParameterObject;
+import org.jinterop.dcom.core.JILocalCoClass;
+import org.jinterop.dcom.core.JILocalInterfaceDefinition;
+import org.jinterop.dcom.core.JILocalMethodDescriptor;
+import org.jinterop.dcom.core.JILocalParamsDescriptor;
 import org.jinterop.dcom.core.JIPointer;
 import org.jinterop.dcom.core.JIProgId;
 import org.jinterop.dcom.core.JISession;
 import org.jinterop.dcom.core.JIString;
 import org.jinterop.dcom.core.JIStruct;
-import org.jinterop.dcom.core.JIUnsigned;
+import org.jinterop.dcom.core.JIUnsignedFactory;
 import org.jinterop.dcom.core.JIUnsignedInteger;
 import org.jinterop.dcom.core.JIUnsignedShort;
 import org.jinterop.dcom.core.JIVariant;
-import org.jinterop.dcom.win32.FuncDesc;
-import org.jinterop.dcom.win32.IJIDispatch;
-import org.jinterop.dcom.win32.IJITypeInfo;
-import org.jinterop.dcom.win32.IJITypeLib;
-import org.jinterop.dcom.win32.JIComFactory;
+import org.jinterop.dcom.impls.JIObjectFactory;
+import org.jinterop.dcom.impls.automation.FuncDesc;
+import org.jinterop.dcom.impls.automation.IJIDispatch;
+import org.jinterop.dcom.impls.automation.IJITypeInfo;
+import org.jinterop.dcom.impls.automation.IJITypeLib;
 
 
 public class FirstContact_Stub implements FirstContact {
@@ -53,11 +52,11 @@ public class FirstContact_Stub implements FirstContact {
 		 //session = JISession.createSession("10.74.85.56","itl-hw-38602a\\Vikram","Infosys@123");
 		//session = JISession.createSession("federation","administrator","enterprise");
 		//stub = new JIComServer(JIClsid.valueOf("8B21775E-717D-11CE-AB5B-D41203C10000"),address,session);
-		stub = new JIComServer(JIProgId.valueOf(session,"TestCOM123.TestServer2"),address,session);
+		//stub = new JIComServer(JIProgId.valueOf(session,"TestCOM123.TestServer2"),address,session);
 		//stub = new JIComServer(JIProgId.valueOf(session,"VirtualServer.Application"),address,session);
 
 		// stub = new JIComServer(JIProgId.valueOf(session,"ArrayTry.myarray"),address,session);
-		//stub = new JIComServer(JIProgId.valueOf(session,"Icecream.IceCreamOrder"),address,session);
+		stub = new JIComServer(JIProgId.valueOf("ATLDemo.TestSafeArray"),address,session);
 		//stub = new JIComServer(JIProgId.valueOf(session,"SafeArrayDemo.SafeArrayTest"),address,session);
 		 //stub = new JIComServer(JIProgId.valueOf(session,"Project1.Class1"),address,session);
 		 //stub = new JIComServer(JIProgId.valueOf(session,"TLI.TLIApplication"),address,session);
@@ -93,15 +92,27 @@ public class FirstContact_Stub implements FirstContact {
 
 			ResourceBundle bundle = JISystem.getErrorMessages();
 			IJIComObject unknown = stub.createInstance();
-			IJIDispatch dispatch = (IJIDispatch)JIComFactory.createCOMInstance(JIComFactory.IID_IDispatch,unknown);
+			IJIDispatch dispatch = (IJIDispatch)JIObjectFactory.narrowObject(unknown.queryInterface(IJIDispatch.IID));
+			JIVariant variants = dispatch.callMethodA("GetDispatch");
+			
+//			dispatch.callMethodA("TestVariant1", new Object[]{variants[1]} );
+			
+//			JIStruct struct = new JIStruct();
+//			struct.addMember(Character.class);
+//			struct.addMember(Double.class);
+//			struct.addMember(new JIString(JIFlags.FLAG_REPRESENTATION_STRING_BSTR));
+//			
+//			Object[] t1 = dispatch.callMethodA("CreateArray", new Object[]{new JIVariant(10), new JIVariant(new JIArray(struct,null,1,true),true)} );
+//			Object[] t1 = dispatch.callMethodA("GetFlavorsWithPrices", new Object[]{JIVariant.EMPTY_BYREF()} );
+//			t1 = dispatch.callMethodA("GetFlavors", new Object[]{JIVariant.EMPTY_BYREF()} );
 
-			String sXmlEncode = "";
-            for (int i=0; i<10000;i++)
-                    sXmlEncode = sXmlEncode + "P";
-
-            JIVariant psXml = new JIVariant(new JIString(sXmlEncode));
-            JIVariant psError = new JIVariant(new JIString(""), true);
-            Object params[] = new Object[] {psXml, psError};
+//			String sXmlEncode = "";
+//            for (int i=0; i<10000;i++)
+//                    sXmlEncode = sXmlEncode + "P";
+//
+//            JIVariant psXml = new JIVariant(new JIString(sXmlEncode));
+//            JIVariant psError = new JIVariant(new JIString(""), true);
+//            Object params[] = new Object[] {psXml, psError};
 
 //            int id = dispatch.getIDsOfNames("testHresult2");
 //            JIVariant[] rt = dispatch.callMethodA("testSafeArrayOfVariants", new Object[]{JIVariant.EMPTY()_BYREF});
@@ -118,7 +129,7 @@ public class FirstContact_Stub implements FirstContact {
 			//JIVariant[] c2 = dispatch.callMethodA("Request", new Object[]{new JIString("rtrtr"),new JIVariant(new JIVariant(arry34)),JIVariant.EMPTY()_BYREF,JIVariant.EMPTY()_BYREF} );
 			//Object[] t1 = dispatch.callMethodA("GetFlavorsWithPrices", new Object[]{JIVariant.EMPTY()_BYREF} );
 
-			JICallObject callObject = new JICallObject(handle2.getIpid());
+			JICallBuilder callObject = new JICallBuilder();
 			callObject.setOpnum(156);
 			callObject.addInParamAsPointer(new JIPointer(new JIArray(new JIVariant[]{}, true)), JIFlags.FLAG_NULL);
 			//callObject.addInParamAsArray(new JIArray(new JIVariant[]{new JIVariant(new JIArray(new JIString[]{new JIString("ab"),new JIString("cd")}))},true), JIFlags.FLAG_NULL);
@@ -133,8 +144,8 @@ public class FirstContact_Stub implements FirstContact {
 			Object[] ret0 = dispatch.callMethodA("LongArray", new Object[]{new JIVariant(new JIArray(new Integer[]{new Integer(1),new Integer(2),new Integer(4)},true), true)});
 			JIArray ret01 = ((JIVariant)ret0[1]).getObjectAsArray();
 			ret0 = dispatch.callMethodA("ReadAsicRegisterBlock", new Object[]{new JIString("Chonap"),new JIString("Cho"),new JIVariant(new JIArray(new JIUnsignedShort[]{
-					(JIUnsignedShort)JIUnsigned.getUnsigned(new Integer(4000), JIFlags.FLAG_REPRESENTATION_UNSIGNED_SHORT),(JIUnsignedShort)JIUnsigned.getUnsigned(new Integer(4001), JIFlags.FLAG_REPRESENTATION_UNSIGNED_SHORT)},true),true),new JIVariant(new JIArray(new JIUnsignedInteger[]{
-							(JIUnsignedInteger)JIUnsigned.getUnsigned(new Long(9999), JIFlags.FLAG_REPRESENTATION_UNSIGNED_INT),(JIUnsignedInteger)JIUnsigned.getUnsigned(new Long(9999), JIFlags.FLAG_REPRESENTATION_UNSIGNED_INT)},true),true), Boolean.FALSE,Boolean.TRUE});
+					(JIUnsignedShort)JIUnsignedFactory.getUnsigned(new Integer(4000), JIFlags.FLAG_REPRESENTATION_UNSIGNED_SHORT),(JIUnsignedShort)JIUnsignedFactory.getUnsigned(new Integer(4001), JIFlags.FLAG_REPRESENTATION_UNSIGNED_SHORT)},true),true),new JIVariant(new JIArray(new JIUnsignedInteger[]{
+							(JIUnsignedInteger)JIUnsignedFactory.getUnsigned(new Long(9999), JIFlags.FLAG_REPRESENTATION_UNSIGNED_INT),(JIUnsignedInteger)JIUnsignedFactory.getUnsigned(new Long(9999), JIFlags.FLAG_REPRESENTATION_UNSIGNED_INT)},true),true), Boolean.FALSE,Boolean.TRUE});
 			ret01 = ((JIVariant)ret0[1]).getObjectAsArray();
 
 			ret0 = dispatch.callMethodA("testSA1", new Object[]{new JIVariant(new JIArray(new Boolean[]{Boolean.FALSE,Boolean.TRUE},true),true),new JIVariant(new JIArray(new Float[]{new Float(123.4),new Float(123.4)},true),true),new JIVariant(new JIArray(new Double[]{new Double(123.4),new Double(123.4)},true),true)});
@@ -151,13 +162,12 @@ public class FirstContact_Stub implements FirstContact {
 
 			JIVariant tr = dispatch.callMethodA("testHresult2");
 
-			Object[] t1 = dispatch.callMethodA("GetFlavors", new Object[]{JIVariant.EMPTY_BYREF()} );
-
+			
 			//IJIComObject handle2 = (IJIComObject)unknown.queryInterface("FA11DECE-7660-11D2-9C43-006008AD8BC06");
 
 			//IJIComObject handle2 = (IJIComObject)unknown.queryInterface("A12E7F85-B011-4AB3-A924-215F67A725D5");
 
-			dispatch.callMethod("testUnsignedInt", new Object[]{JIUnsigned.getUnsigned(new Short((short)-200), JIFlags.FLAG_REPRESENTATION_UNSIGNED_BYTE)});
+			dispatch.callMethod("testUnsignedInt", new Object[]{JIUnsignedFactory.getUnsigned(new Short((short)-200), JIFlags.FLAG_REPRESENTATION_UNSIGNED_BYTE)});
 
 			JIStruct filetime = new JIStruct();
 			filetime.addMember(Integer.class);
@@ -183,7 +193,7 @@ public class FirstContact_Stub implements FirstContact {
 			ONEVENTSTRUCT.addMember(new JIPointer(JIVariant.class));
 			ONEVENTSTRUCT.addMember(new JIString(JIFlags.FLAG_REPRESENTATION_STRING_LPWSTR));
 
-			callObject = new JICallObject(handle2.getIpid());
+			callObject = new JICallBuilder();
 //			callObject.setOpnum(3);
 //			callObject.addOutParamAsType(Integer.class, JIFlags.FLAG_NULL);
 //			callObject.addOutParamAsType(Integer.class, JIFlags.FLAG_NULL);
@@ -199,7 +209,7 @@ public class FirstContact_Stub implements FirstContact {
 		//Integer
 			callObject.reInit();
 			callObject.setOpnum(147);
-			callObject.addInParamAsUnsigned(JIUnsigned.getUnsigned(new Short((short)200), JIFlags.FLAG_REPRESENTATION_UNSIGNED_BYTE),JIFlags.FLAG_NULL);
+			callObject.addInParamAsUnsigned(JIUnsignedFactory.getUnsigned(new Short((short)200), JIFlags.FLAG_REPRESENTATION_UNSIGNED_BYTE),JIFlags.FLAG_NULL);
 			handle2.call(callObject);
 
 			JIArray	 aIn	= new JIArray(new JIVariant[] {new JIVariant(new JIString("40807810804000300798")),new JIVariant(new JIString("1"))},true);
@@ -250,7 +260,7 @@ public class FirstContact_Stub implements FirstContact {
 	        callObject.addOutParamAsObject ( new JIPointer(Integer.class,false),JIFlags.FLAG_NULL );
 	        callObject.addOutParamAsObject ( new JIPointer(Integer.class,false),JIFlags.FLAG_NULL );
 	        callObject.addInParamAsUUID ("620012E2-69E3-4DC0-B553-AE252524D2F6", JIFlags.FLAG_NULL );
-	        callObject.addOutParamAsType (JIInterfacePointer.class, JIFlags.FLAG_NULL );
+	        callObject.addOutParamAsType (IJIComObject.class, JIFlags.FLAG_NULL );
 
 	        t2= handle2.call(callObject);
 
@@ -262,7 +272,7 @@ public class FirstContact_Stub implements FirstContact {
 //			Object[] t = handle2.call(callObject);
 //			Date date = ((JIVariant)t[0]).getObjectAsDate();
 //
-//			callObject = new JICallObject(handle2.getIpid());
+//			callObject = new JICallBuilder(handle2.getIpid());
 //			callObject.addInParamAsVariant(JIVariant.EMPTY()_BYREF,JIFlags.FLAG_NULL);
 //			callObject.addOutParamAsType(JIVariant.class,JIFlags.FLAG_NULL);
 //			callObject.setOpnum(1);
@@ -281,7 +291,7 @@ public class FirstContact_Stub implements FirstContact {
 			//System.out.println(arrtt);
 
 			IJIComObject handle = (IJIComObject)unknown.queryInterface("620012E2-69E3-4DC0-B553-AE252524D2F6");
-			JICallObject callObject2 = new JICallObject(handle.getIpid());
+			JICallBuilder callObject2 = new JICallBuilder();
 
 
 
@@ -308,7 +318,7 @@ public class FirstContact_Stub implements FirstContact {
 			Object[] arry = typeInfo.getDocumentation(funcDesc.memberId);
 			JIString mops = typeInfo.getMops(funcDesc.memberId);
 			//int[] ids = typeInfo.getIdOfNames(new String[]{"QueryInterface"});
-			//IJIUnknown unknown2 = typeInfo.createInstance(JIComFactory.IID_IDispatch);
+			//IJIUnknown unknown2 = typeInfo.createInstance(JIObjectFactory.IID_IDispatch);
 			int hrefType = typeInfo.getRefTypeOfImplType(0);
 			IJITypeInfo info = typeInfo.getRefTypeInfo(hrefType);
 			//int implTypeFlags = typeInfo.getImplTypeFlags(1);
@@ -320,7 +330,7 @@ public class FirstContact_Stub implements FirstContact {
 			//Object[] ry = typeLib.getDocumentation(funcDesc.memberId);
 			type = typeLib.getTypeInfoType(0);
 			//IJITypeInfo type2 = typeLib.getTypeInfo(type);
-			//typeInfo.getDllEntry(funcDesc.memberId, INVOKEKIND.INVOKE_FUNC.intValue());
+			//typeInfo.getDllEntry(funcDesc.memberId, InvokeKind.INVOKE_FUNC.intValue());
 			//typeInfo.getTypeAttr();
 
 
@@ -328,7 +338,7 @@ public class FirstContact_Stub implements FirstContact {
 			//if (handle.isIDispatchSupported())
 			{
 //				//System.out.println(handle.getDispatch().GetTypeInfoCount());
-//				dispatch = (IJIDispatch)JIComFactory.createCOMInstance(JIComFactory.IID_IDispatch,(IJIComObject)unknown.queryInterface(IJIDispatch.IID,false));
+//				dispatch = (IJIDispatch)JIObjectFactory.createCOMInstance(JIObjectFactory.IID_IDispatch,(IJIComObject)unknown.queryInterface(IJIDispatch.IID,false));
 //				int i = dispatch.GetIDsOfNames("testSA");
 //				//int i = dispatch.GetIDsOfNames("testAllVARIANTS");
 //				//IJITypeInfo type = dispatch.GetTypeInfo(0);
@@ -339,7 +349,7 @@ public class FirstContact_Stub implements FirstContact {
 //				//dispatch.invoke(i,1,new Object[]{params,null,new Integer(2),new Integer(0)},new Object[]{JIVariant.class});
 			}
 
-			JICallObject obj = new JICallObject(handle.getIpid());
+			JICallBuilder obj = new JICallBuilder();
 			Object[] in = null;
 			Object[] out = null;
 //			obj.setOpnum(13);//31);//30);//29);//32);
@@ -437,18 +447,18 @@ public class FirstContact_Stub implements FirstContact {
 
 			obj.reInit();
 			obj.setOpnum(134);
-			obj.addInParamAsInterfacePointer(dispatch.getInterfacePointer(),JIFlags.FLAG_NULL);
+			obj.addInParamAsComObject(dispatch,JIFlags.FLAG_NULL);
 			handle.call(obj);
 
 			obj.reInit();
 			obj.setOpnum(135);
-			obj.addInParamAsInterfacePointer(dispatch.getInterfacePointer(),JIFlags.FLAG_NULL);
-			obj.addOutParamAsType(JIInterfacePointer.class,JIFlags.FLAG_NULL);
+			obj.addInParamAsComObject(dispatch,JIFlags.FLAG_NULL);
+			obj.addOutParamAsType(IJIComObject.class,JIFlags.FLAG_NULL);
 			handle.call(obj);
 
 			obj.reInit();
 			obj.setOpnum(136);
-			obj.addInParamAsInterfacePointer(dispatch.getInterfacePointer(),JIFlags.FLAG_NULL);
+			obj.addInParamAsComObject(dispatch,JIFlags.FLAG_NULL);
 			handle.call(obj);
 
 			obj.reInit();
@@ -534,13 +544,13 @@ public class FirstContact_Stub implements FirstContact {
 			obj.reInit();
 			obj.setOpnum(4);
 
-			JIInterfaceDefinition interfaceDefinition = new JIInterfaceDefinition("620012E2-69E3-4DC0-B553-AE252524D2F6");
-			JIJavaCoClass component = new JIJavaCoClass(interfaceDefinition,Test.class);
-			JIParameterObject runtimeObject = new JIParameterObject();
-			JIMethodDescriptor methodDescriptor = new JIMethodDescriptor("test",1,runtimeObject);
+			JILocalInterfaceDefinition interfaceDefinition = new JILocalInterfaceDefinition("620012E2-69E3-4DC0-B553-AE252524D2F6");
+			JILocalCoClass component = new JILocalCoClass(interfaceDefinition,Test.class);
+			JILocalParamsDescriptor runtimeObject = new JILocalParamsDescriptor();
+			JILocalMethodDescriptor methodDescriptor = new JILocalMethodDescriptor("test",1,runtimeObject);
 			interfaceDefinition.addMethodDescriptor(methodDescriptor);
 
-			IJIComObject objMyCOM = JIComFactory.createCOMInstance(handle,JIInterfacePointer.getInterfacePointer(session,component));
+			IJIComObject objMyCOM = JIObjectFactory.buildObject(session,component);
 			obj.addInParamAsVariant(new JIVariant(objMyCOM),JIFlags.FLAG_NULL);
 			obj.addOutParamAsType(JIVariant.class,JIFlags.FLAG_NULL);
 			result = handle.call(obj);

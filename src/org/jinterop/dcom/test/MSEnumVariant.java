@@ -11,9 +11,9 @@ import org.jinterop.dcom.core.JIProgId;
 import org.jinterop.dcom.core.JISession;
 import org.jinterop.dcom.core.JIString;
 import org.jinterop.dcom.core.JIVariant;
-import org.jinterop.dcom.win32.IJIDispatch;
-import org.jinterop.dcom.win32.IJIEnumVARIANT;
-import org.jinterop.dcom.win32.JIComFactory;
+import org.jinterop.dcom.impls.JIObjectFactory;
+import org.jinterop.dcom.impls.automation.IJIDispatch;
+import org.jinterop.dcom.impls.automation.IJIEnumVariant;
 
 //StdCollection.VBCollection
 public class MSEnumVariant {
@@ -25,9 +25,9 @@ public class MSEnumVariant {
 	public MSEnumVariant(String address,String[] args) throws JIException, UnknownHostException
 	{
 		session = JISession.createSession(args[1],args[2],args[3]);
-		comServer = new JIComServer(JIProgId.valueOf(session,"StdCollection.VBCollection"),address,session);
+		comServer = new JIComServer(JIProgId.valueOf("StdCollection.VBCollection"),address,session);
 		IJIComObject object = comServer.createInstance();
-		dispatch = (IJIDispatch)JIComFactory.createCOMInstance(IJIDispatch.IID,object);
+		dispatch = (IJIDispatch)JIObjectFactory.narrowObject(object.queryInterface(IJIDispatch.IID));
 
 	}
 
@@ -46,10 +46,10 @@ public class MSEnumVariant {
 
 		JIVariant variant = dispatch.get("_NewEnum");
 
-		IJIComObject object2 = variant.getObjectAsComObject(dispatch);
+		IJIComObject object2 = variant.getObjectAsComObject();
 		//IJIComObject enumObject = (IJIComObject)object2.queryInterface(IJIEnumVARIANT.IID);
 
-		IJIEnumVARIANT enumVARIANT = (IJIEnumVARIANT)JIComFactory.createCOMInstance(IJIEnumVARIANT.IID,object2);
+		IJIEnumVariant enumVARIANT = (IJIEnumVariant)JIObjectFactory.narrowObject(object2.queryInterface(IJIEnumVariant.IID));
 
 		for (i = 0; i < 10; i++)
 		{
@@ -69,7 +69,7 @@ public class MSEnumVariant {
 		enumVARIANT.next(1);
 		enumVARIANT.skip(2);
 		values = enumVARIANT.next(1);
-		IJIEnumVARIANT newenum = enumVARIANT.Clone();
+		IJIEnumVariant newenum = enumVARIANT.Clone();
 		newenum.reset();
 		values = newenum.next(10);
 		i = 0;
