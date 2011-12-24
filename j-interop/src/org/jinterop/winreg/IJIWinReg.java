@@ -59,6 +59,10 @@ public interface IJIWinReg {
 	 */
 	public static final int REG_DWORD = 4;
 	/**
+	 * Type specifying QWORD
+	 */
+	public static final int REG_QWORD = 11;
+	/**
 	 * Type specifying environment string
 	 */
 	public static final int REG_EXPAND_SZ = 2;
@@ -472,6 +476,7 @@ public interface IJIWinReg {
 		public byte[] data = null; //should be in the right encoding for Strings.
 		public byte[][] data2 = null; //reg_
 		public int dword;
+		public long qword;
 		public int getOpnum() {
 			return 22;
 		}
@@ -547,6 +552,11 @@ public interface IJIWinReg {
 					case REG_DWORD:
 						ndr.writeUnsignedLong(lengthInBytes);
 						ndr.writeUnsignedLong(dword);
+						ndr.writeUnsignedLong(lengthInBytes);
+					break;
+					case REG_QWORD:
+						ndr.writeUnsignedLong(lengthInBytes);
+						ndr.writeUnsignedDouble(qword);
 						ndr.writeUnsignedLong(lengthInBytes);
 					break;
 					case REG_NONE:
@@ -1048,8 +1058,11 @@ public interface IJIWinReg {
 				break;
 				case REG_DWORD:
 					i = ndr.readUnsignedLong();
-					int value = ndr.readUnsignedLong();
-					Encdec.enc_uint32le(value, retval, 0);
+					Encdec.enc_uint32le(ndr.readUnsignedLong(), retval, 0);
+				break;
+				case REG_QWORD:
+					i = ndr.readUnsignedLong();
+					Encdec.enc_uint64le(ndr.readUnsignedDouble(), retval, 0);
 				break;
 				case REG_NONE:
 				case REG_BINARY:
