@@ -150,19 +150,16 @@ public class NdrBuffer {
     }
 
     public void enc_ndr_double(long l) {
-	align(8);
-	Encdec.enc_uint64le(l, buf, index);
-	advance(8);
+	enc_ndr_long((int)(l & 0xFFFFFFFF));
+	enc_ndr_long((int)((l >>> 32) & 0xFFFFFFFF));
     }
 
     public long dec_ndr_double() {
-	align(8);
-	long val = Encdec.dec_uint64le(buf, index);
-	advance(8);
-	return val;
+	return ((long)dec_ndr_long()) + (((long)dec_ndr_long()) << 32);
     }
 
     /* float */
+
     public void enc_ndr_string(String s) {
 	align(4);
 	int i = index;

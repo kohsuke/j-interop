@@ -477,6 +477,7 @@ public interface IJIWinReg {
 		public byte[][] data2 = null; //reg_
 		public int dword;
 		public long qword;
+
 		public int getOpnum() {
 			return 22;
 		}
@@ -1033,16 +1034,13 @@ public interface IJIWinReg {
 			ndr.readUnsignedLong();
 			int maxcount = ndr.readUnsignedLong(); //maxcount
 			int offset = ndr.readUnsignedLong();//offset
-			switch(type)
-			{
+			switch(type) {
 				case REG_EXPAND_SZ: //for environment variable strings
 				case REG_SZ:
-
 					int actuallength = (int)Math.round(new Integer(ndr.readUnsignedLong()).doubleValue()/2.0);//actuallength
 
 					//last 2 bytes , null termination will be eaten outside the loop
-					while (i < actuallength - 1)
-					{
+					while (i < actuallength - 1) {
 						int retVal = ndr.readUnsignedShort();
 						//even though this is a unicode string , but will not have anything else
 						//other than ascii charset, which is supported by all encodings.
@@ -1050,59 +1048,54 @@ public interface IJIWinReg {
 						retval[i] = (byte)retVal;
 						i++;
 					}
-					if (actuallength != 0)
-					{
+					if (actuallength != 0) {
 						ndr.readUnsignedShort();
 					}
+					break;
 
-				break;
 				case REG_DWORD:
 					i = ndr.readUnsignedLong();
 					Encdec.enc_uint32le(ndr.readUnsignedLong(), retval, 0);
-				break;
+					break;
+
 				case REG_QWORD:
 					i = ndr.readUnsignedLong();
 					Encdec.enc_uint64le(ndr.readUnsignedDouble(), retval, 0);
-				break;
+					break;
+
 				case REG_NONE:
 				case REG_BINARY:
 					i = ndr.readUnsignedLong();
 					ndr.readOctetArray(retval,0,i);
-				break;
-				case REG_MULTI_SZ:
+					break;
 
+				case REG_MULTI_SZ:
 					actuallength = (int)Math.round(new Integer(ndr.readUnsignedLong()).doubleValue()/2.0);//actuallength
 					int kk = 0,ll = 0;
 					i = 0;
 					//last 2 bytes , null termination will be eaten outside the loop
-					while (i < actuallength - 1)
-					{
+					while (i < actuallength - 1) {
 						int retVal = ndr.readUnsignedShort();
-						if (retVal == 0)
-						{
+						if (retVal == 0) {
 							//reached end of one string
 							buffer2[kk] = new byte[ll];
 							System.arraycopy(retval,0,buffer2[kk],0,ll);
 							kk++;
 							ll = -1; //it will become 0 next
 							retval = new byte[bufferLength];
-						}
-						else
-						{
+						} else {
 							retval[ll] = (byte)retVal;
 						}
 						i++;
 						ll++;
 					}
-					if (actuallength != 0)
-					{
+					if (actuallength != 0) {
 						ndr.readUnsignedShort();
 					}
-
 					break;
+
 				default:
 					throw new JIRuntimeException(JIErrorCodes.JI_WINREG_EXCEPTION4);
-
 
 			}
 
@@ -1118,18 +1111,14 @@ public interface IJIWinReg {
 			ndr.readUnsignedLong();
 
 			int hresult = ndr.readUnsignedLong();
-			if (hresult != 0)
-			{
+			if (hresult != 0) {
 				throw new JIRuntimeException(hresult);
 			}
 
-			if (type != REG_MULTI_SZ)
-			{
+			if (type != REG_MULTI_SZ) {
 				this.buffer = new byte[i];
 				System.arraycopy(retval,0,this.buffer,0,i);
-			}
-			else
-			{
+			} else {
 				//we have the data already in buffer2.
 			}
 			//key = buffer.toString();
@@ -1256,6 +1245,15 @@ public interface IJIWinReg {
 	 * @throws JIException
 	 */
 	public void winreg_SetValue(JIPolicyHandle handle,String valueName, int data) throws JIException;
+
+	/**Sets name-value for a REG_QWORD type.
+	 *
+	 * @param handle
+	 * @param valueName
+	 * @param data
+	 * @throws JIException
+	 */
+	public void winreg_SetValue(JIPolicyHandle handle,String valueName, long data) throws JIException;
 
 	/**Deletes a key or value specified by valueName.
 	 *

@@ -389,6 +389,17 @@ public class JIWinRegStub extends Stub implements IJIWinReg {
 		setValue(setvalue);
 	}
 
+	public void winreg_SetValue(JIPolicyHandle handle,String valueName, long data) throws JIException
+	{
+		setValue setvalue = new setValue();
+		setvalue.clazzType = REG_QWORD;
+		setvalue.lengthInBytes = 8;
+		setvalue.qword = data;
+		setvalue.parentKey = handle;
+		setvalue.valueName = valueName;
+		setValue(setvalue);
+	}
+
 	public String[] winreg_EnumKey(JIPolicyHandle handle,int index) throws JIException
 	{
 		enumKey enumkey = new enumKey();
