@@ -40,4 +40,4 @@ DOCS=docs/api
 LIBDIR=$(TOP)/lib
 LIB=$(subst $(SPACE),$(CLN),$(filter %.jar %.zip, $(wildcard $(LIBDIR)/*)))
 
-JOVAL=$(TOP)/../../joval
+JOVAL=$(TOP)/../../jOVAL
