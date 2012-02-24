@@ -961,7 +961,7 @@ public interface IJIWinReg {
 		public int bufferLength = -1;
 		public int type = -1;
 		public byte[] buffer = null;
-		public byte[][] buffer2 = new byte[2048][];
+		public byte[][] buffer2 = new byte[128][];
 		public int getOpnum() {
 			return 17;
 		}
@@ -1075,6 +1075,13 @@ public interface IJIWinReg {
 					i = 0;
 					//last 2 bytes , null termination will be eaten outside the loop
 					while (i < actuallength - 1) {
+						// enlarge buffer2 if necessary
+						if (kk == buffer2.length) {
+						    int newLen = buffer2.length + 128;
+						    byte[][] oldb2 = buffer2;
+						    buffer2 = new byte[newLen][];
+						    System.arraycopy(oldb2,0,buffer2,0,oldb2.length);
+						}
 						int retVal = ndr.readUnsignedShort();
 						if (retVal == 0) {
 							//reached end of one string
