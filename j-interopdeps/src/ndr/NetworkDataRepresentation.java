@@ -63,6 +63,9 @@ public class NetworkDataRepresentation {
     public int readUnsignedLong() {
         return buf.dec_ndr_long();
     }
+    public long readUnsignedDouble() {
+        return buf.dec_ndr_double();
+    }
     public void writeUnsignedSmall(int value) {
         buf.enc_ndr_small(value);
     }
@@ -71,6 +74,9 @@ public class NetworkDataRepresentation {
     }
     public void writeUnsignedLong(int value) {
         buf.enc_ndr_long(value);
+    }
+    public void writeUnsignedDouble(long value) {
+        buf.enc_ndr_double(value);
     }
 
     public void setFormat(Format format) {
