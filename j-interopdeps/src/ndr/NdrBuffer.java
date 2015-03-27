@@ -1,19 +1,19 @@
-/* Donated by Jarapac (http://jarapac.sourceforge.net/)
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 3.0 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- */
+/**
+* Donated by Jarapac (http://jarapac.sourceforge.net/) and released under EPL.
+* 
+* j-Interop (Pure Java implementation of DCOM protocol)
+*     
+* Copyright (c) 2013 Vikram Roopchand
+* 
+* All rights reserved. This program and the accompanying materials
+* are made available under the terms of the Eclipse Public License v1.0
+* which accompanies this distribution, and is available at
+* http://www.eclipse.org/legal/epl-v10.html
+*
+* Contributors:
+* Vikram Roopchand  - Moving to EPL from LGPL v1.
+*  
+*/
 
 package ndr;
 
@@ -37,6 +37,8 @@ public class NdrBuffer {
 	public int length;
     public NdrBuffer deferred;
 
+    public boolean ignoreAlign = false;
+    
     public NdrBuffer(byte[] buf, int start) {
         this.buf = buf;
 		this.start = index = start;
@@ -48,6 +50,7 @@ public class NdrBuffer {
 		NdrBuffer nb = new NdrBuffer(buf, start);
 		nb.index = idx;
 		nb.deferred = deferred;
+		nb.ignoreAlign = ignoreAlign;
 		return nb;
 	}
 
@@ -71,6 +74,10 @@ public class NdrBuffer {
         return buf;
     }
     public int align(int boundary, byte value) {
+    	if (ignoreAlign)
+    	{
+    		return 0;
+    	}
 		int n = align(boundary);
 		int i = n;
 		while (i > 0) {
@@ -99,6 +106,10 @@ public class NdrBuffer {
 		}
 	}
 	public int align(int boundary) {
+		if (ignoreAlign)
+    	{
+    		return 0;
+    	}
 		int m = boundary - 1;
 		int i = index - start;
 		int n = ((i + m) & ~m) - i;

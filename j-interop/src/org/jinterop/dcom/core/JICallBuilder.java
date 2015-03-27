@@ -1,19 +1,17 @@
-/**j-Interop (Pure Java implementation of DCOM protocol)  
- * Copyright (C) 2006  Vikram Roopchand
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 3.0 of the License, or (at your option) any later version.
- *
- * Though a sincere effort has been made to deliver a professional, 
- * quality product,the library itself is distributed WITHOUT ANY WARRANTY; 
- * See the GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- */
+/**
+* j-Interop (Pure Java implementation of DCOM protocol)
+*     
+* Copyright (c) 2013 Vikram Roopchand
+* 
+* All rights reserved. This program and the accompanying materials
+* are made available under the terms of the Eclipse Public License v1.0
+* which accompanies this distribution, and is available at
+* http://www.eclipse.org/legal/epl-v10.html
+*
+* Contributors:
+* Vikram Roopchand  - Moving to EPL from LGPL v3.
+*  
+*/
 
 package org.jinterop.dcom.core;
 
@@ -27,6 +25,7 @@ import java.util.logging.Level;
 import ndr.NdrObject;
 import ndr.NetworkDataRepresentation;
 
+import org.jinterop.dcom.common.JIComVersion;
 import org.jinterop.dcom.common.JIErrorCodes;
 import org.jinterop.dcom.common.JIException;
 import org.jinterop.dcom.common.JIRuntimeException;
@@ -952,8 +951,21 @@ public class JICallBuilder extends NdrObject implements Serializable {
 //			read2(ndr2);
 //		}
 		//interpret based on the out params flags
-		JIOrpcThat orpcThat = JIOrpcThat.decode(ndr);
-		readPacket(ndr,false);
+		if (!readOnlyHRESULT)
+		{
+			if (splCOMVersion)
+			{
+				//during handshake and no other time. Kept for OxidResolver methods.
+				serverAlive2 = new JIComVersion(ndr.readUnsignedShort(), ndr.readUnsignedShort());
+				new JIPointer(new JIPointer(JIDualStringArray.class)).decode(ndr, new ArrayList(), JIFlags.FLAG_NULL, new HashMap());
+				ndr.readUnsignedLong();
+			}
+			else
+			{
+				JIOrpcThat orpcThat = JIOrpcThat.decode(ndr);
+				readPacket(ndr,false);
+			}
+		}
 		readResult(ndr);
 	}
 	
@@ -1041,6 +1053,10 @@ public class JICallBuilder extends NdrObject implements Serializable {
 					}
 					else
 					{
+						if (comObjectImpl.internal_getInterfacePointer().isCustomObjRef())
+						{
+							continue;
+						}
 						comObject = JIFrameworkHelper.instantiateComObject2(session, comObjectImpl.internal_getInterfacePointer());
 					}
 					
@@ -1116,5 +1132,23 @@ public class JICallBuilder extends NdrObject implements Serializable {
 	JISession getSession()
 	{
 		return session;
+	}
+	
+	private boolean readOnlyHRESULT = false;
+	void setReadOnlyHRESULT()
+	{
+		readOnlyHRESULT = true;
+	}
+	
+	private boolean splCOMVersion = false;
+	private JIComVersion serverAlive2 = null;
+	void internal_COMVersion()
+	{
+		splCOMVersion = true;
+	}
+	
+	JIComVersion internal_getComVersion()
+	{
+		return serverAlive2;
 	}
 }

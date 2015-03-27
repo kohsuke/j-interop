@@ -1,19 +1,17 @@
-/** j-Interop (Pure Java implementation of DCOM protocol)
- * Copyright (C) 2006  Vikram Roopchand
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 3.0 of the License, or (at your option) any later version.
- *
- * Though a sincere effort has been made to deliver a professional,
- * quality product,the library itself is distributed WITHOUT ANY WARRANTY;
- * See the GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- */
+/**
+* j-Interop (Pure Java implementation of DCOM protocol)
+*     
+* Copyright (c) 2013 Vikram Roopchand
+* 
+* All rights reserved. This program and the accompanying materials
+* are made available under the terms of the Eclipse Public License v1.0
+* which accompanies this distribution, and is available at
+* http://www.eclipse.org/legal/epl-v10.html
+*
+* Contributors:
+* Vikram Roopchand  - Moving to EPL from LGPL v3.
+*  
+*/
 
 package org.jinterop.dcom.core;
 
@@ -67,6 +65,16 @@ public final class JIPointer implements Serializable {
 		this.isReferenceTypePtr = isReferenceTypePtr;
 	}
 
+	private boolean nullSpecial = false;
+	/**
+	 * Some COM servers send referentId (pointer) as null but the referent is not. To be used only when you know this is the case.
+	 * Better leave it unsed.
+	 */
+	public void treatNullSpecially()
+	{
+		nullSpecial = true;
+	}
+	
 	/** Creates an instance of this class where the referent is <code>value</code>.
 	 *  Used when serializing this pointer.
 	 *
@@ -109,6 +117,11 @@ public final class JIPointer implements Serializable {
 		this.flags = flags;
 	}
 
+	void setIsReferenceTypePtr()
+	{
+		isReferenceTypePtr = true;
+	}
+	
 	/**Creates an instance of this class where the referent is <code>value</code>.
 	 * Used when serializing this pointer. This pointer is <b>not</b> of reference type.
 	 *
@@ -189,13 +202,15 @@ public final class JIPointer implements Serializable {
 		JIPointer retVal = new JIPointer();
 		retVal.setFlags(flags);
 		retVal.isNull = isNull;
+		retVal.nullSpecial = nullSpecial;
+		
 		//retVal.isDeffered = isDeffered;
 		if (isDeffered || (FLAG & JIFlags.FLAG_REPRESENTATION_ARRAY) == JIFlags.FLAG_REPRESENTATION_ARRAY
 				/*|| (FLAG & JIFlags.FLAG_REPRESENTATION_NESTED_POINTER ) == JIFlags.FLAG_REPRESENTATION_NESTED_POINTER */)
 		{
 			retVal.referentId = ((Integer)JIMarshalUnMarshalHelper.deSerialize(ndr,Integer.class,defferedPointers,FLAG,additionalData)).intValue();
 			retVal.referent = referent; //will only be the class or object
-			if (retVal.referentId ==  0)
+			if (retVal.referentId ==  0 && !nullSpecial)
 			{
 				//null pointer
 				// just return
@@ -215,7 +230,7 @@ public final class JIPointer implements Serializable {
 			//referentId = ndr.readUnsignedLong();
 			retVal.referentId = ((Integer)JIMarshalUnMarshalHelper.deSerialize(ndr,Integer.class,defferedPointers,FLAG,additionalData)).intValue();
 			retVal.referent = referent; //will only be the class or object
-			if (retVal.referentId ==  0)
+			if (retVal.referentId ==  0 && !nullSpecial)
 			{
 				//null pointer
 				// just return

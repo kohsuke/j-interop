@@ -1,19 +1,17 @@
-/**j-Interop (Pure Java implementation of DCOM protocol)
- * Copyright (C) 2006  Vikram Roopchand
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 3.0 of the License, or (at your option) any later version.
- *
- * Though a sincere effort has been made to deliver a professional,
- * quality product,the library itself is distributed WITHOUT ANY WARRANTY;
- * See the GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- */
+/**
+* j-Interop (Pure Java implementation of DCOM protocol)
+*     
+* Copyright (c) 2013 Vikram Roopchand
+* 
+* All rights reserved. This program and the accompanying materials
+* are made available under the terms of the Eclipse Public License v1.0
+* which accompanies this distribution, and is available at
+* http://www.eclipse.org/legal/epl-v10.html
+*
+* Contributors:
+* Vikram Roopchand  - Moving to EPL from LGPL v3.
+*  
+*/
 
 package org.jinterop.dcom.core;
 
@@ -32,10 +30,8 @@ import org.jinterop.dcom.common.JISystem;
 
 import rpc.core.UUID;
 
-final class JIRemActivation extends NdrObject {
+final class JIRemActivation extends NdrObject implements JIIServerActivation {
 
-	public static final int RPC_C_IMP_LEVEL_IDENTIFY = 2;
-	public static final int RPC_C_IMP_LEVEL_IMPERSONATE = 3;
 	private int impersonationLevel = RPC_C_IMP_LEVEL_IMPERSONATE;
 	private int mode = 0;
 	private String monikerName = null;
@@ -231,6 +227,9 @@ final class JIRemActivation extends NdrObject {
 
 	}
 
+	/* (non-Javadoc)
+	 * @see org.jinterop.dcom.core.JIIServerActivation#isActivationSuccessful()
+	 */
 	public boolean isActivationSuccessful()
 	{
 		return activationSuccessful;
@@ -246,6 +245,9 @@ final class JIRemActivation extends NdrObject {
 		return oxid;
 	}
 
+	/* (non-Javadoc)
+	 * @see org.jinterop.dcom.core.JIIServerActivation#getDualStringArrayForOxid()
+	 */
 	public JIDualStringArray getDualStringArrayForOxid()
 	{
 		return dualStringArrayForOxid;
@@ -266,13 +268,35 @@ final class JIRemActivation extends NdrObject {
 		return hresult;
 	}
 
+	/* (non-Javadoc)
+	 * @see org.jinterop.dcom.core.JIIServerActivation#getMInterfacePointer()
+	 */
 	public JIInterfacePointer getMInterfacePointer()
 	{
 		return mInterfacePointer;
 	}
 
+	/* (non-Javadoc)
+	 * @see org.jinterop.dcom.core.JIIServerActivation#getIPID()
+	 */
 	public String getIPID()
 	{
 		return ipid;
+	}
+
+	public boolean isDual() {
+		return isDual;
+	}
+
+	public String getDispIpid() {
+		return dispIpid;
+	}
+
+	public int getDispRefs() {
+		return dispRefs;
+	}
+
+	public void setDispIpid(String dispIpid) {
+		this.dispIpid = dispIpid;
 	}
 }

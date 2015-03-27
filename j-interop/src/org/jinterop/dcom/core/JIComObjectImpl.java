@@ -1,24 +1,23 @@
-/**j-Interop (Pure Java implementation of DCOM protocol)  
- * Copyright (C) 2006  Vikram Roopchand
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 3.0 of the License, or (at your option) any later version.
- *
- * Though a sincere effort has been made to deliver a professional, 
- * quality product,the library itself is distributed WITHOUT ANY WARRANTY; 
- * See the GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- */
+/**
+* j-Interop (Pure Java implementation of DCOM protocol)
+*     
+* Copyright (c) 2013 Vikram Roopchand
+* 
+* All rights reserved. This program and the accompanying materials
+* are made available under the terms of the Eclipse Public License v1.0
+* which accompanies this distribution, and is available at
+* http://www.eclipse.org/legal/epl-v10.html
+*
+* Contributors:
+* Vikram Roopchand  - Moving to EPL from LGPL v3.
+*  
+*/
 
 package org.jinterop.dcom.core;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Level;
 
 import org.jinterop.dcom.common.IJIUnreferenced;
@@ -26,8 +25,8 @@ import org.jinterop.dcom.common.JIErrorCodes;
 import org.jinterop.dcom.common.JIException;
 import org.jinterop.dcom.common.JISystem;
 
-import com.iwombat.foundation.IdentifierFactory;
-import com.iwombat.util.GUIDUtil;
+//import com.iwombat.foundation.IdentifierFactory;
+//import com.iwombat.util.GUIDUtil;
 
 
 
@@ -51,6 +50,8 @@ final class JIComObjectImpl implements IJIComObject {
 	private Map connectionPointInfo = null;
 	private int timeout = 0;
 	private final boolean isLocal;
+	
+	private JIComCustomMarshallerUnMarshaller customObject = null;
 	
 	JIComObjectImpl(JISession session,JIInterfacePointer ptr)
 	{
@@ -115,7 +116,8 @@ final class JIComObjectImpl implements IJIComObject {
 
 		JISession.debug_addIpids(ptr.getIPID(), 5);
 		
-		session.getStub2().addRef_ReleaseRef(obj);
+//		session.getStub2().addRef_ReleaseRef(obj);
+		session.addRef_ReleaseRef(ptr.getIPID(), obj, 5);
 		
 		if (obj.getResultAsIntAt(1) != 0)
 		{
@@ -143,7 +145,8 @@ final class JIComObjectImpl implements IJIComObject {
 			JISystem.getLogger().warning("RELEASE called directly ! removing 5 references for " + ptr.getIPID()+ " session: " + session.getSessionIdentifier());
 			JISession.debug_delIpids(ptr.getIPID(), 5);
         }
-		session.getStub2().addRef_ReleaseRef(obj);
+//		session.getStub2().addRef_ReleaseRef(obj);
+		session.addRef_ReleaseRef(ptr.getIPID(), obj, -5);
 	}
 
 
@@ -220,7 +223,9 @@ final class JIComObjectImpl implements IJIComObject {
 		{
 			connectionPointInfo = new HashMap();
 		}
-		String uniqueId = GUIDUtil.guidStringFromHexString(IdentifierFactory.createUniqueIdentifier().toHexString());
+		
+//		String uniqueId = GUIDUtil.guidStringFromHexString(IdentifierFactory.createUniqueIdentifier().toHexString());
+		String uniqueId = UUID.randomUUID().toString();
 		connectionPointInfo.put(uniqueId,new Object[]{connectionPoint,cookie});
 		return uniqueId;
 	}
@@ -296,5 +301,18 @@ final class JIComObjectImpl implements IJIComObject {
 	public String toString()
 	{
 		return "IJIComObject[" + internal_getInterfacePointer() + " , session: " + getAssociatedSession().getSessionIdentifier() + ", isLocal: " + isLocalReference() + "]";
+	}
+
+	public JIComCustomMarshallerUnMarshaller getCustomObject() {
+		return customObject;
+	}
+	
+	void setCustomObject(JIComCustomMarshallerUnMarshaller customObject)
+	{
+		this.customObject = customObject;
+	}
+
+	public int getLengthOfInterfacePointer() {
+		return ptr.getLength();
 	}
 }

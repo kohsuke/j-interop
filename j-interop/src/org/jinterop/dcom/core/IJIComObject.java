@@ -1,19 +1,17 @@
-/**j-Interop (Pure Java implementation of DCOM protocol)  
- * Copyright (C) 2006  Vikram Roopchand
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 3.0 of the License, or (at your option) any later version.
- *
- * Though a sincere effort has been made to deliver a professional, 
- * quality product,the library itself is distributed WITHOUT ANY WARRANTY; 
- * See the GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- */
+/**
+* j-Interop (Pure Java implementation of DCOM protocol)
+*     
+* Copyright (c) 2013 Vikram Roopchand
+* 
+* All rights reserved. This program and the accompanying materials
+* are made available under the terms of the Eclipse Public License v1.0
+* which accompanies this distribution, and is available at
+* http://www.eclipse.org/legal/epl-v10.html
+*
+* Contributors:
+* Vikram Roopchand  - Moving to EPL from LGPL v3.
+*  
+*/
 
 package org.jinterop.dcom.core;
 
@@ -309,4 +307,13 @@ public interface IJIComObject extends Serializable {
 	 * @return <code>true</code> if this is a local reference , <code>false</code> otherwise.
 	 */
 	public boolean isLocalReference();
+	
+	/** Will return the Object decoded by the CustomMarshallerUnMarshaller if one is present and this
+	 * IJIComObject is of the type OBJREF_CUSTOM.
+	 * 
+	 * @return
+	 */
+	public JIComCustomMarshallerUnMarshaller getCustomObject();
+	
+	public int getLengthOfInterfacePointer();
 }

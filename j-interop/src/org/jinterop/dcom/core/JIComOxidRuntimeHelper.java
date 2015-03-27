@@ -1,19 +1,17 @@
-/**j-Interop (Pure Java implementation of DCOM protocol)  
- * Copyright (C) 2006  Vikram Roopchand
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 3.0 of the License, or (at your option) any later version.
- *
- * Though a sincere effort has been made to deliver a professional, 
- * quality product,the library itself is distributed WITHOUT ANY WARRANTY; 
- * See the GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- */
+/**
+* j-Interop (Pure Java implementation of DCOM protocol)
+*     
+* Copyright (c) 2013 Vikram Roopchand
+* 
+* All rights reserved. This program and the accompanying materials
+* are made available under the terms of the Eclipse Public License v1.0
+* which accompanies this distribution, and is available at
+* http://www.eclipse.org/legal/epl-v10.html
+*
+* Contributors:
+* Vikram Roopchand  - Moving to EPL from LGPL v3.
+*  
+*/
 
 package org.jinterop.dcom.core;
 
@@ -49,8 +47,8 @@ import org.jinterop.dcom.transport.JIComRuntimeTransportFactory;
 import rpc.Stub;
 import rpc.core.UUID;
 
-import com.iwombat.foundation.IdentifierFactory;
-import com.iwombat.util.GUIDUtil;
+//import com.iwombat.foundation.IdentifierFactory;
+//import com.iwombat.util.GUIDUtil;
 
 
 
@@ -390,8 +388,13 @@ class OxidResolverImpl extends NdrObject implements IJICOMRuntimeWorker
 		ndr2.setBuffer(ndrBuffer);
 		
 		//serialize COMVERSION
-		JIMarshalUnMarshalHelper.serialize(ndr2,Short.class, new Short((short)JISystem.getCOMVersion().getMajorVersion()),null,JIFlags.FLAG_NULL);
-		JIMarshalUnMarshalHelper.serialize(ndr2,Short.class, new Short((short)JISystem.getCOMVersion().getMinorVersion()),null,JIFlags.FLAG_NULL);
+//		JIMarshalUnMarshalHelper.serialize(ndr2,Short.class, new Short((short)JISystem.getCOMVersion().getMajorVersion()),null,JIFlags.FLAG_NULL);
+//		JIMarshalUnMarshalHelper.serialize(ndr2,Short.class, new Short((short)JISystem.getCOMVersion().getMinorVersion()),null,JIFlags.FLAG_NULL);
+		
+		//Vikram June 19th 2013: Forcing the JILocalCoClass's server to 5.4. This is so that we stay at 5.4 DCOM until we upgrade the 
+		//local server to 5.7 as well.
+		JIMarshalUnMarshalHelper.serialize(ndr2,Short.class, new Short((short)5),null,JIFlags.FLAG_NULL);
+		JIMarshalUnMarshalHelper.serialize(ndr2,Short.class, new Short((short)4),null,JIFlags.FLAG_NULL);
 		
 		JIMarshalUnMarshalHelper.serialize(ndr2,Integer.class, new Integer(0),null,JIFlags.FLAG_NULL);
 		JIMarshalUnMarshalHelper.serialize(ndr2,Integer.class, new Integer(dualStringArray.getLength()),null,JIFlags.FLAG_NULL);
@@ -447,8 +450,9 @@ class OxidResolverImpl extends NdrObject implements IJICOMRuntimeWorker
 //		
 		
 		//randomly create IPID and send, this is the ipid of the remunknown, we store it with remunknown object
-        UUID uuid = details.getRemUnknownIpid() == null ? new UUID(GUIDUtil.guidStringFromHexString(IdentifierFactory.createUniqueIdentifier().toHexString())) : new UUID(details.getRemUnknownIpid());
-        
+//        UUID uuid = details.getRemUnknownIpid() == null ? new UUID(GUIDUtil.guidStringFromHexString(IdentifierFactory.createUniqueIdentifier().toHexString())) : new UUID(details.getRemUnknownIpid());
+		UUID uuid = details.getRemUnknownIpid() == null ? new UUID(java.util.UUID.randomUUID().toString()) : new UUID(details.getRemUnknownIpid());
+		
 		//create the bindings for this Java Object.
 		//this port will go in the new bindings sent to the COM client.
 		int port = -1;
@@ -492,8 +496,14 @@ class OxidResolverImpl extends NdrObject implements IJICOMRuntimeWorker
 		
 		JIMarshalUnMarshalHelper.serialize(ndr2,UUID.class, uuid,null,JIFlags.FLAG_NULL);
 		JIMarshalUnMarshalHelper.serialize(ndr2,Integer.class, authnHint,null,JIFlags.FLAG_NULL);
-		JIMarshalUnMarshalHelper.serialize(ndr2,Short.class, new Short((short)JISystem.getCOMVersion().getMajorVersion()),null,JIFlags.FLAG_NULL);
-		JIMarshalUnMarshalHelper.serialize(ndr2,Short.class, new Short((short)JISystem.getCOMVersion().getMinorVersion()),null,JIFlags.FLAG_NULL);
+//		JIMarshalUnMarshalHelper.serialize(ndr2,Short.class, new Short((short)JISystem.getCOMVersion().getMajorVersion()),null,JIFlags.FLAG_NULL);
+//		JIMarshalUnMarshalHelper.serialize(ndr2,Short.class, new Short((short)JISystem.getCOMVersion().getMinorVersion()),null,JIFlags.FLAG_NULL);
+		
+		//Vikram June 19th 2013: Forcing the JILocalCoClass's server to 5.4. This is so that we stay at 5.4 DCOM until we upgrade the 
+		//local server to 5.7 as well.
+		JIMarshalUnMarshalHelper.serialize(ndr2,Short.class, new Short((short)5),null,JIFlags.FLAG_NULL);
+		JIMarshalUnMarshalHelper.serialize(ndr2,Short.class, new Short((short)4),null,JIFlags.FLAG_NULL);
+		
 		JIMarshalUnMarshalHelper.serialize(ndr2,Integer.class, new Integer(0),null,JIFlags.FLAG_NULL); //hresult
 		
 		
@@ -644,6 +654,12 @@ class RemUnknownObject extends NdrObject implements IJICOMRuntimeWorker
 						        retvals[i] = 0x80000003;
 						        continue;
 	                        }
+                            else
+	                        {
+	                            // StoredIQ - Satwik - native C++ says 01 here 
+                            	retvals[i] = 0x1;
+                            }
+
 						    
 						    int total = ((Integer)mapOfIpidsVsRef.get(ipidref)).intValue() + publicRefs + privateRefs;
 						    mapOfIpidsVsRef.put(ipidref, new Integer(total));
@@ -914,10 +930,13 @@ class RemUnknownObject extends NdrObject implements IJICOMRuntimeWorker
 			//now for each QueryResult
 			try {
 				int hresult = 0;
-				String ipid2 = GUIDUtil.guidStringFromHexString(IdentifierFactory.createUniqueIdentifier().toHexString());;
+//				String ipid2 = GUIDUtil.guidStringFromHexString(IdentifierFactory.createUniqueIdentifier().toHexString());;
+				String ipid2 = java.util.UUID.randomUUID().toString();
 				if (!component.isPresent(iid.toString()))
 				{
 					hresult = JIErrorCodes.E_NOINTERFACE;
+//					ipid2 = GUIDUtil.guidStringFromHexString("00000000000000000000000000000000");
+					ipid2 = java.util.UUID.fromString("00000000000000000000000000000000").toString();
 				}
 				else
 				{
@@ -951,16 +970,28 @@ class RemUnknownObject extends NdrObject implements IJICOMRuntimeWorker
 				JIMarshalUnMarshalHelper.serialize(ndr2,Integer.class,new Integer(0xCCCCCCCC),null,JIFlags.FLAG_NULL);
 				
 				//now generate the IPID and export a java instance with this.
-				JIStdObjRef objRef = new JIStdObjRef(ipid2,details.getOxid(),details.getOid());
+				JIStdObjRef objRef = null;
+                if (hresult == 0)
+                {
+                    objRef = new JIStdObjRef(ipid2,details.getOxid(),details.getOid());
+                }
+                else
+                {
+                    objRef = new JIStdObjRef(ipid2);
+                }
 				objRef.encode(ndr2);
 				
 				//add it to the exported Ipids map
-				mapOfIpidsVsRef.put(ipid2.toUpperCase(), new Integer(objRef.getPublicRefs()));
-				 
+				if (hresult == 0)
+				{
+					mapOfIpidsVsRef.put(ipid2.toUpperCase(), new Integer(objRef.getPublicRefs()));
+				}
+				
 				if (JISystem.getLogger().isLoggable(Level.FINEST))
                 {
 					JISystem.getLogger().finest("RemUnknownObject: [QI] for which the stdObjRef is " +  objRef);
                 }
+				
 			} catch (IllegalAccessException e) {
 				JISystem.getLogger().throwing("JIComOxidRuntimeHelper","QueryInterface",e);  
 			} catch (InstantiationException e) {

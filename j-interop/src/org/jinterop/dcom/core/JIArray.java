@@ -1,19 +1,17 @@
-/**j-Interop (Pure Java implementation of DCOM protocol)  
- * Copyright (C) 2006  Vikram Roopchand
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 3.0 of the License, or (at your option) any later version.
- *
- * Though a sincere effort has been made to deliver a professional, 
- * quality product,the library itself is distributed WITHOUT ANY WARRANTY; 
- * See the GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- */
+/**
+* j-Interop (Pure Java implementation of DCOM protocol)
+*     
+* Copyright (c) 2013 Vikram Roopchand
+* 
+* All rights reserved. This program and the accompanying materials
+* are made available under the terms of the Eclipse Public License v1.0
+* which accompanies this distribution, and is available at
+* http://www.eclipse.org/legal/epl-v10.html
+*
+* Contributors:
+* Vikram Roopchand  - Moving to EPL from LGPL v3.
+*  
+*/
 
 package org.jinterop.dcom.core;
 
@@ -58,6 +56,7 @@ public final class JIArray implements Serializable{
 	private boolean isVaryingProxy = false;
 	private List conformantMaxCounts = new ArrayList(); //list of integers
 	private Object template = null;
+	private boolean isArrayOfCOMObjects_5_6_DCOM = false;
 	private int sizeOfNestedArrayInBytes = 0; //used in both encoding and decoding.
 	
 	private JIArray()
@@ -191,6 +190,17 @@ public final class JIArray implements Serializable{
 			&& !template.getClass().equals(JIPointer.class) && !template.getClass().equals(JIString.class))
 		{
 			throw new IllegalArgumentException(JISystem.getLocalizedMessage(JIErrorCodes.JI_ARRAY_INCORRECT_TEMPLATE_PARAM));
+		}
+		
+		if (JISystem.getCOMVersion().getMinorVersion() == 6 && template.getClass().equals(JIPointer.class))
+		{
+			if (((JIPointer)template).getReferent() == IJIComObject.class)
+			{
+				//in this case this pointer will be a reference type pointer and not deffered one.
+				//change in MS specs since DCOM 5.4
+				isArrayOfCOMObjects_5_6_DCOM = true;
+				((JIPointer)template).setIsReferenceTypePtr();
+			}
 		}
 		
 		this.template = template;
@@ -415,6 +425,15 @@ public final class JIArray implements Serializable{
 			
 		return sizeOfNestedArrayInBytes;
 	}
+
+	/** Returns array size in bytes
+	 * 
+	 * @return
+	 */
+//	public int getArraySize()
+//	{
+//		return getSizeOfAllElementsInBytes();
+//	}
 	
 	
 	void encode(NetworkDataRepresentation ndr,Object array, List defferedPointers ,int FLAG)
@@ -600,7 +619,15 @@ public final class JIArray implements Serializable{
 				}
 				else
 				{
-					Array.set(array,i,JIMarshalUnMarshalHelper.deSerialize(ndr,template,defferedPointers,FLAG | JIFlags.FLAG_REPRESENTATION_ARRAY,additionalData));
+					if (isArrayOfCOMObjects_5_6_DCOM)
+					{
+						//not setting the array flag here.
+						Array.set(array,i,JIMarshalUnMarshalHelper.deSerialize(ndr,template,defferedPointers,FLAG,additionalData));	
+					}
+					else
+					{
+						Array.set(array,i,JIMarshalUnMarshalHelper.deSerialize(ndr,template,defferedPointers,FLAG | JIFlags.FLAG_REPRESENTATION_ARRAY,additionalData));
+					}
 				}
 			}
 			else

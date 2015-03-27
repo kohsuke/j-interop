@@ -1,19 +1,17 @@
-/**j-Interop (Pure Java implementation of DCOM protocol)  
- * Copyright (C) 2006  Vikram Roopchand
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 3.0 of the License, or (at your option) any later version.
- *
- * Though a sincere effort has been made to deliver a professional, 
- * quality product,the library itself is distributed WITHOUT ANY WARRANTY; 
- * See the GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- */
+/**
+* j-Interop (Pure Java implementation of DCOM protocol)
+*     
+* Copyright (c) 2013 Vikram Roopchand
+* 
+* All rights reserved. This program and the accompanying materials
+* are made available under the terms of the Eclipse Public License v1.0
+* which accompanies this distribution, and is available at
+* http://www.eclipse.org/legal/epl-v10.html
+*
+* Contributors:
+* Vikram Roopchand  - Moving to EPL from LGPL v3.
+*  
+*/
 
 package org.jinterop.dcom.core;
 
@@ -30,6 +28,7 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.UUID;
 import java.util.logging.Level;
 
 import org.jinterop.dcom.common.JIErrorCodes;
@@ -38,8 +37,8 @@ import org.jinterop.dcom.common.JISystem;
 
 import rpc.Security;
 
-import com.iwombat.foundation.IdentifierFactory;
-import com.iwombat.util.GUIDUtil;
+//import com.iwombat.foundation.IdentifierFactory;
+//import com.iwombat.util.GUIDUtil;
 
 
 /** Thread for Oxid Resolver. Creates and accepts socket
@@ -97,6 +96,8 @@ final class JIComOxidRuntime {
 		String domain = null;
 		boolean modified = false;
 		boolean closed = false;
+		boolean useNTLMv2 = false;
+		boolean isSSO = false;
 		int seqNum = 1;
 		//JISession session  = null;
 		Map currentSetOIDs = new HashMap();//list of JIObjectId, this list is iterated and if the IPID ref count is 0 , 
@@ -157,6 +158,34 @@ final class JIComOxidRuntime {
 		
 		}
 	}
+
+	
+    // Helper method to force release of a local component, so we dont
+    // wait until the session is destroyed.
+    static void releaseLocalComponent(JISession session, JILocalCoClass component)
+    {
+        synchronized (mutex2) {
+            if (JISystem.getLogger().isLoggable(Level.INFO))
+                {
+                    JISystem.getLogger().info("releaseLocalComponent: " + component.getCoClassIID());
+                }
+            
+            JIComOxidDetails details = (JIComOxidDetails)mapOfJavaVsOxidDetails.get(component);
+            mapOfOIDVsComponents.remove(details.getOid());
+            mapOfOxidVsOxidDetails.remove(details.getOxid());
+            mapOfIPIDVsComponent.remove(details.getIpid());
+            mapOfJavaVsOxidDetails.remove(component);
+            listOfExportedJavaComponents.remove(component);
+            mapOfSessionIdsVsOIDs.remove(new Integer(session.getSessionIdentifier()));
+            
+            //the thread associated with this will also stop.
+            details.interruptRemUnknownThreadGroup();
+						
+            component = null;
+            details = null;
+        }
+    }
+	
 	
 	static void destroySessionOIDs(int sessionId)
 	{
@@ -233,7 +262,8 @@ final class JIComOxidRuntime {
 					stub = (JIComOxidStub)mapOfAddressVsStub.get(address);
 					if (stub == null)
 					{
-						stub = new JIComOxidStub(address,holder.domain,holder.username,holder.password);
+						stub = new JIComOxidStub(address,holder.domain,holder.username,holder.password,holder.useNTLMv2,
+								holder.isSSO);
 						mapOfAddressVsStub.put(address, stub);
 					}	
 				}
@@ -341,6 +371,8 @@ final class JIComOxidRuntime {
 				holder.currentSetOIDs.put(oid,oid);
 				holder.modified = true;
 				holder.seqNum = 0;
+				holder.useNTLMv2 = session.isNTLMv2Enabled();
+				holder.isSSO = session.isSSOEnabled();
 				mapOfSessionVsPingSetHolder.put(session,holder);
 			}
 			else //found , means it is another call for a new IPID
@@ -583,7 +615,8 @@ final class JIComOxidRuntime {
 //			}
 			
 			//as the ID could be repeated, this is the ipid of the interface being requested.
-			String ipid = GUIDUtil.guidStringFromHexString(IdentifierFactory.createUniqueIdentifier().toHexString()); 
+//			String ipid = GUIDUtil.guidStringFromHexString(IdentifierFactory.createUniqueIdentifier().toHexString()); 
+			String ipid = UUID.randomUUID().toString();
 			String iid = component.isCoClassUnderRealIID() ? component.getCoClassIID() : IJIComObject.IID;//has to be IUnknown's IID.
 			byte[] bytes = new byte[8];
 			randomGen.nextBytes(bytes);

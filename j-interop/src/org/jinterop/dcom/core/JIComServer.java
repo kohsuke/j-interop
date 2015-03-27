@@ -1,25 +1,25 @@
-/**j-Interop (Pure Java implementation of DCOM protocol)
- * Copyright (C) 2006  Vikram Roopchand
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 3.0 of the License, or (at your option) any later version.
- *
- * Though a sincere effort has been made to deliver a professional,
- * quality product,the library itself is distributed WITHOUT ANY WARRANTY;
- * See the GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- */
+/**
+* j-Interop (Pure Java implementation of DCOM protocol)
+*     
+* Copyright (c) 2013 Vikram Roopchand
+* 
+* All rights reserved. This program and the accompanying materials
+* are made available under the terms of the Eclipse Public License v1.0
+* which accompanies this distribution, and is available at
+* http://www.eclipse.org/legal/epl-v10.html
+*
+* Contributors:
+* Vikram Roopchand  - Moving to EPL from LGPL v3.
+*  
+*/
 
 package org.jinterop.dcom.core;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 
@@ -79,7 +79,8 @@ public final class JIComServer extends Stub {
 	}
 
 	//private String address = null;
-	private JIRemActivation remoteActivation = null;
+//	private JIRemActivation remoteActivation = null;
+	private JIIServerActivation serverActivation = null;
 	private JIOxidResolver oxidResolver = null;
 	private String clsid = null;
 	private String syntax = null;
@@ -89,6 +90,7 @@ public final class JIComServer extends Stub {
 	private final Object mutex = new Object();
 	private boolean timeoutModifiedfrom0 = false;
 	private JIInterfacePointer interfacePtrCtor = null;
+	private static final List<String> listOfIps = new ArrayList<String>();
 
 	private JIComServer(){}
 
@@ -130,6 +132,15 @@ public final class JIComServer extends Stub {
 			JISystem.internal_dumpMap();
 		}
 
+//		ipAddress="192.168.1.104";
+		if (ipAddress != null && !ipAddress.trim().equalsIgnoreCase(""))
+		{
+			if (!listOfIps.contains(ipAddress))
+			{
+				listOfIps.add(ipAddress.toLowerCase());
+			}
+		}
+		
 		super.setTransportFactory(JIComTransportFactory.getSingleTon());
 		//now read the session and prepare information for the stub.
 		super.setProperties(new Properties(defaults));
@@ -171,7 +182,8 @@ public final class JIComServer extends Stub {
 				{
 					try{
 
-						if (binding.getNetworkAddress().equalsIgnoreCase(targetAddress))
+//						if (binding.getNetworkAddress().equalsIgnoreCase(targetAddress))
+						if (listOfIps.contains(binding.getNetworkAddress().toLowerCase()))
 						{
 							nameBinding = null;
 							break;
@@ -179,7 +191,8 @@ public final class JIComServer extends Stub {
 
 						//now check for the one with port
 						index = binding.getNetworkAddress().indexOf("[");//this contains the port
-						if (index != -1 && binding.getNetworkAddress().substring(0,index).equalsIgnoreCase(targetAddress))
+//						if (index != -1 && binding.getNetworkAddress().substring(0,index).equalsIgnoreCase(targetAddress))
+						if (index != -1 && listOfIps.contains(binding.getNetworkAddress().substring(0,index).toLowerCase()))
 						{
 							nameBinding = null;
 							break;
@@ -284,7 +297,8 @@ public final class JIComServer extends Stub {
 				{
 					try{
 
-						if (binding.getNetworkAddress().equalsIgnoreCase(targetAddress))
+//						if (binding.getNetworkAddress().equalsIgnoreCase(targetAddress))
+						if (listOfIps.contains(binding.getNetworkAddress().toLowerCase()))
 						{
 							nameBinding = null;
 							break;
@@ -292,7 +306,8 @@ public final class JIComServer extends Stub {
 
 						//now check for the one with port
 						index = binding.getNetworkAddress().indexOf("[");//this contains the port
-						if (index != -1 && binding.getNetworkAddress().substring(0,index).equalsIgnoreCase(targetAddress))
+//						if (index != -1 && binding.getNetworkAddress().substring(0,index).equalsIgnoreCase(targetAddress))
+						if (index != -1 && listOfIps.contains(binding.getNetworkAddress().substring(0,index).toLowerCase()))
 						{
 							nameBinding = null;
 							break;
@@ -506,14 +521,50 @@ public final class JIComServer extends Stub {
 						{
 							registry = JIWinRegFactory.getSingleTon().getWinreg(new JIDefaultAuthInfoImpl(session.getDomain(),session.getUserName(),session.getPassword()),session.getTargetServer(),true);	
 						}
-						JIPolicyHandle hkcr = registry.winreg_OpenHKCR();
-						JIPolicyHandle key = registry.winreg_CreateKey(hkcr,"CLSID\\{" + this.clsid + "}",IJIWinReg.REG_OPTION_NON_VOLATILE,IJIWinReg.KEY_ALL_ACCESS );
-						registry.winreg_SetValue(key,"AppID",("{" + this.clsid + "}").getBytes(),false,false);
-						registry.winreg_CloseKey(key);
-						key = registry.winreg_CreateKey(hkcr,"AppID\\{" + this.clsid + "}",IJIWinReg.REG_OPTION_NON_VOLATILE,IJIWinReg.KEY_ALL_ACCESS );
-						registry.winreg_SetValue(key,"DllSurrogate","  ".getBytes(),false,false);
-						registry.winreg_CloseKey(key);
-						registry.winreg_CloseKey(hkcr);
+						
+						JIPolicyHandle hklm = null;
+						JIPolicyHandle hkwow6432 = null;
+						try
+						{
+						    // Try 64bit first...
+						    hklm = registry.winreg_OpenHKLM();
+						    hkwow6432 = registry.winreg_OpenKey(hklm,"SOFTWARE\\Classes\\Wow6432Node", IJIWinReg.KEY_ALL_ACCESS);
+						}
+						catch (JIException jie) { }
+
+						if (hklm != null)
+						    registry.winreg_CloseKey(hklm);
+
+						if (hkwow6432 != null)
+						{
+						    JISystem.getLogger().info("Attempting to register on 64 bit");
+						    // HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Wow6432Node\CLSID\{E4BE20A4-9EF1-4B05-9117-AF43EAB4B295}\ -- "AppID"
+						    JIPolicyHandle key = registry.winreg_CreateKey(hkwow6432, "CLSID\\{" + this.clsid + "}", IJIWinReg.REG_OPTION_NON_VOLATILE, IJIWinReg.KEY_ALL_ACCESS);
+						    registry.winreg_SetValue(key, "AppId", ("{" + this.clsid + "}").getBytes(), false, false);
+						    registry.winreg_CloseKey(key);
+						    JISystem.getLogger().info("--- winreg_SetValue --- SOFTWARE\\Classes\\Wow6432Node\\CLSID\\" + this.clsid + " -- AppID");
+
+						    // HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Wow6432Node\AppID\{E4BE20A4-9EF1-4B05-9117-AF43EAB4B295}\AppID\ -- "DllSurrogate"
+						    key = registry.winreg_CreateKey(hkwow6432, "AppID\\{" + this.clsid + "}", IJIWinReg.REG_OPTION_NON_VOLATILE, IJIWinReg.KEY_ALL_ACCESS);
+						    registry.winreg_SetValue(key, "DllSurrogate", "".getBytes(), false, false);
+						    registry.winreg_CloseKey(key);
+
+						    JISystem.getLogger().info("--- winreg_SetValue --- SOFTWARE\\Classes\\Wow6432Node\\AppID\\" + this.clsid + " -- DllSurrogate");
+						    registry.winreg_CloseKey(hkwow6432);
+						}
+						else
+						{
+							JISystem.getLogger().info("Attempting to register on 32 bit");
+						    JIPolicyHandle hkcr = registry.winreg_OpenHKCR();
+						    JIPolicyHandle key = registry.winreg_CreateKey(hkcr,"CLSID\\{" + this.clsid + "}",IJIWinReg.REG_OPTION_NON_VOLATILE,IJIWinReg.KEY_ALL_ACCESS );
+						    registry.winreg_SetValue(key,"AppID",("{" + this.clsid + "}").getBytes(),false,false);
+						    registry.winreg_CloseKey(key);
+						    key = registry.winreg_CreateKey(hkcr,"AppID\\{" + this.clsid + "}",IJIWinReg.REG_OPTION_NON_VOLATILE,IJIWinReg.KEY_ALL_ACCESS );
+						    registry.winreg_SetValue(key,"DllSurrogate", "  ".getBytes(),false,false);
+
+						    registry.winreg_CloseKey(key);
+						    registry.winreg_CloseKey(hkcr);
+						}
 						registry.closeConnection();
 					} catch (UnknownHostException e1) {
 						//auto registration failed as well...
@@ -542,7 +593,7 @@ public final class JIComServer extends Stub {
 
 	private void init () throws JIException
 	{
-		if (remoteActivation != null && remoteActivation.isActivationSuccessful())
+		if (serverActivation != null && serverActivation.isActivationSuccessful())
 		{
 			return;
 		}
@@ -558,31 +609,69 @@ public final class JIComServer extends Stub {
 			getEndpoint().getSyntax().setVersion(0,0);
 			((JIComEndpoint)getEndpoint()).rebindEndPoint();
 
-			//setup syntax for IRemoteActivation
-			syntax = "4d9f4ab8-7d1c-11cf-861e-0020af6e7c57:0.0";
-			getEndpoint().getSyntax().setUuid(new rpc.core.UUID("4d9f4ab8-7d1c-11cf-861e-0020af6e7c57"));
-			getEndpoint().getSyntax().setVersion(0,0);
-			((JIComEndpoint)getEndpoint()).rebindEndPoint();
-
-			remoteActivation = new JIRemActivation(clsid);
-			call(Endpoint.IDEMPOTENT,remoteActivation);
+			//3.2.4.1.1.1 Determining RPC Binding Information for Activation
+			//Commenting the below to dynamically identify DCOM versions.			
+//			JICallBuilder serverAlive = new JICallBuilder(true);
+//			serverAlive.attachSession(session);
+//			serverAlive.setOpnum(0);
+//			serverAlive.setReadOnlyHRESULT();
+//			call(Endpoint.IDEMPOTENT,serverAlive);
+			
+			JICallBuilder serverAlive = new JICallBuilder(true);
+			serverAlive.attachSession(session);
+			serverAlive.setOpnum(2);
+			serverAlive.internal_COMVersion();
+			try
+			{
+				call(Endpoint.IDEMPOTENT,serverAlive);
+				JISystem.setCOMVersion(serverAlive.internal_getComVersion());
+			}catch(JIRuntimeException e)
+			{
+				if (e.getHResult() == JIErrorCodes.RPC_S_PROCNUM_OUT_OF_RANGE)
+				{
+					JISystem.getCOMVersion().setMajorVersion(5);
+					JISystem.getCOMVersion().setMinorVersion(1);
+				}
+			}
+			
+			if (JISystem.getCOMVersion() != null && JISystem.getCOMVersion().getMinorVersion() > 1) 
+			{
+				//use SCMActivator
+				syntax = "000001A0-0000-0000-C000-000000000046:0.0";
+				getEndpoint().getSyntax().setUuid(new rpc.core.UUID("000001A0-0000-0000-C000-000000000046"));
+				getEndpoint().getSyntax().setVersion(0,0);
+				((JIComEndpoint)getEndpoint()).rebindEndPoint();
+				serverActivation = new JIRemoteSCMActivator().new RemoteCreateInstance(session.getTargetServer(), clsid);
+				call(Endpoint.IDEMPOTENT, (JIRemoteSCMActivator.RemoteCreateInstance)serverActivation);
+				
+			}
+			else
+			{
+				//setup syntax for IRemoteActivation
+				syntax = "4d9f4ab8-7d1c-11cf-861e-0020af6e7c57:0.0";
+				getEndpoint().getSyntax().setUuid(new rpc.core.UUID("4d9f4ab8-7d1c-11cf-861e-0020af6e7c57"));
+				getEndpoint().getSyntax().setVersion(0,0);
+				((JIComEndpoint)getEndpoint()).rebindEndPoint();
+				serverActivation = new JIRemActivation(clsid);
+				call(Endpoint.IDEMPOTENT,(JIRemActivation)serverActivation);
+			}
 		}catch(FaultException e)
 		{
-			remoteActivation = null;
+			serverActivation = null;
 			throw new JIException(e.status,e);
 		}
 		catch (IOException e) {
-			remoteActivation = null;
+			serverActivation = null;
 			throw new JIException(JIErrorCodes.RPC_E_UNEXPECTED,e);
 		}catch (JIRuntimeException e1)
 		{
-			remoteActivation = null;
+			serverActivation = null;
 			throw new JIException(e1);
 		}
 		finally
 		{
 			//the only time remactivation will be null will be case of an exception.
-			if (attachcomplete && remoteActivation == null)
+			if (attachcomplete && serverActivation == null)
 			{
 				try {
 					detach();
@@ -599,7 +688,7 @@ public final class JIComServer extends Stub {
 		syntax = "00000143-0000-0000-c000-000000000046:0.0";
 		//now for the new ip and the port.
 
-		JIStringBinding[] bindings = remoteActivation.getDualStringArrayForOxid().getStringBindings();
+		JIStringBinding[] bindings = serverActivation.getDualStringArrayForOxid().getStringBindings();
 		int i = 0;
 		JIStringBinding binding = null;
 		JIStringBinding nameBinding = null;
@@ -673,7 +762,7 @@ public final class JIComServer extends Stub {
 
 		//and currently only TCPIP is supported.
 		setAddress("ncacn_ip_tcp:" + address);
-		remunknownIPID = remoteActivation.getIPID();
+		remunknownIPID = serverActivation.getIPID();
  	}
 
 
@@ -768,14 +857,14 @@ public final class JIComServer extends Stub {
 			}
 //			JIStdObjRef objRef = (JIStdObjRef)(remoteActivation.getMInterfacePointer().getObjectReference(JIInterfacePointer.OBJREF_STANDARD));
 //			comObject = getObject(objRef.getIpid(),IJIUnknown.IID);
-			comObject = JIFrameworkHelper.instantiateComObject(session, remoteActivation.getMInterfacePointer());
-			if (remoteActivation.isDual)
+			comObject = JIFrameworkHelper.instantiateComObject(session, serverActivation.getMInterfacePointer());
+			if (serverActivation.isDual())
 			{
 				//IJIComObject comObject2 = getObject(remoteActivation.dispIpid,"00020400-0000-0000-c000-000000000046");
 				//this will get garbage collected and then removed.
 				//session.addToSession(comObject2,remoteActivation.dispOid);
-				session.releaseRef(remoteActivation.dispIpid,remoteActivation.dispRefs);
-				remoteActivation.dispIpid = null;
+				session.releaseRef(serverActivation.getDispIpid(),serverActivation.getDispRefs());
+				serverActivation.setDispIpid(null);
 				((JIComObjectImpl)comObject).setIsDual(true);
 			}
 			else
@@ -922,7 +1011,7 @@ public final class JIComServer extends Stub {
 	JIInterfacePointer getServerInterfacePointer()
 	{
 		//remoteactivation can be null only incase of OxidResolver ctor getting called.
-		return remoteActivation == null ? interfacePtrCtor : remoteActivation.getMInterfacePointer();
+		return serverActivation == null ? interfacePtrCtor : serverActivation.getMInterfacePointer();
 	}
 
 	void addRef_ReleaseRef(JICallBuilder obj) throws JIException
